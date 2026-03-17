@@ -753,6 +753,23 @@
   .sw-row:hover { background:var(--surface2); margin:0 -16px; padding:14px 16px; border-radius:var(--radius); }
   .sw-row:last-child { border-bottom:none; }
 </style>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPA_URL = 'https://soyxtvcautfvxkczzkyv.supabase.co';
+    const SUPA_KEY = 'sb_publishable_EBggeEyw4zIW4-2qIerh2w_ebifsycs';
+    const supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: localStorage
+      }
+    });
+    window._supaSession = null;
+    window._supaUser    = null;
+  </script>
 </head>
 <body>
 <div class="app">
@@ -909,6 +926,7 @@
       <div class="nav-item" data-screen="system-config" data-label="System Config" onclick="navigate('system-config')"><span class="material-icons-round">settings</span><span class="nav-item-label">System Config</span></div>
       <div class="nav-item" data-screen="business-logic" data-label="Business Logic" onclick="navigate('business-logic')"><span class="material-icons-round">tune</span><span class="nav-item-label">Business Logic</span></div>
       <div class="nav-item" data-screen="audit-log" data-label="Audit Log" onclick="navigate('audit-log')"><span class="material-icons-round">history</span><span class="nav-item-label">Audit Log</span></div>
+      <div class="nav-item" onclick="logout()" style="color:var(--red-text,#DC2626)" title="Sign out"><span class="material-icons-round">logout</span><span class="nav-item-label">Sign Out</span></div>
       <div class="nav-item" data-screen="profile" data-label="My Profile" onclick="navigate('profile')"><span class="material-icons-round">person</span><span class="nav-item-label">My Profile</span></div>
       </div>
     </div>
@@ -1059,7 +1077,7 @@ function navigate(screen, ctx) {
     'business-logic':'business-logic','audit-log':'audit-log'
   };
   if (hashMap[screen]) {
-    history.replaceState(null,'','#'+hashMap[screen]);
+    try { history.replaceState(null,'','#'+hashMap[screen]); } catch(e) { location.hash = hashMap[screen]; }
   }
   // Active nav highlight
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -6121,7 +6139,116 @@ function renderSprintBoard() {
     .sb-card.dragging { opacity:0.4; transform:scale(0.97); }
     .sb-col.drag-over { border-color:var(--brand) !important; background:var(--accent-bg) !important; }
     .sb-col.drag-over .sb-drop-hint { display:flex !important; }
-  </style>
+  
+  /* ── AUTH / LOGIN ───────────────────────────────────────────── */
+  .auth-overlay {
+    position:fixed;inset:0;z-index:9999;
+    background:linear-gradient(135deg,#0A1628 0%,#0F2A1E 50%,#0A1628 100%);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Inter',sans-serif;
+  }
+  .auth-card {
+    background:#111C2D;border:1px solid rgba(255,255,255,0.08);
+    border-radius:20px;padding:44px 40px;width:100%;max-width:420px;
+    box-shadow:0 24px 80px rgba(0,0,0,0.5);
+  }
+  .auth-logo {
+    display:flex;align-items:center;gap:10px;margin-bottom:32px;
+  }
+  .auth-logo-mark {
+    width:38px;height:38px;background:#1B6B5A;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;font-weight:800;color:white;letter-spacing:-1px;
+  }
+  .auth-logo-text { font-size:18px;font-weight:700;color:white;letter-spacing:-0.3px; }
+  .auth-logo-sub  { font-size:11px;color:rgba(255,255,255,0.35);margin-top:1px; }
+  .auth-title     { font-size:22px;font-weight:700;color:white;margin-bottom:6px; }
+  .auth-subtitle  { font-size:13.5px;color:rgba(255,255,255,0.45);margin-bottom:28px; }
+  .auth-field     { margin-bottom:16px; }
+  .auth-label     { font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);
+                    text-transform:uppercase;letter-spacing:0.07em;margin-bottom:7px;display:block; }
+  .auth-input {
+    width:100%;box-sizing:border-box;background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.1);border-radius:10px;
+    padding:12px 14px;font-size:14px;color:white;outline:none;
+    transition:border-color 0.15s,background 0.15s;font-family:inherit;
+  }
+  .auth-input:focus { border-color:#1B6B5A;background:rgba(27,107,90,0.08); }
+  .auth-input::placeholder { color:rgba(255,255,255,0.25); }
+  .auth-input.error { border-color:#EF4444; }
+  .auth-btn {
+    width:100%;padding:13px;background:#1B6B5A;border:none;border-radius:10px;
+    color:white;font-size:14.5px;font-weight:600;cursor:pointer;
+    font-family:inherit;transition:background 0.15s,transform 0.1s;margin-top:4px;
+  }
+  .auth-btn:hover:not(:disabled) { background:#155A4A; }
+  .auth-btn:active { transform:scale(0.99); }
+  .auth-btn:disabled { opacity:0.5;cursor:not-allowed; }
+  .auth-btn.loading { position:relative;color:transparent; }
+  .auth-btn.loading::after {
+    content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);
+    border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform:translate(-50%,-50%) rotate(360deg); } }
+  .auth-divider {
+    display:flex;align-items:center;gap:12px;margin:20px 0;
+    color:rgba(255,255,255,0.2);font-size:12px;
+  }
+  .auth-divider::before,.auth-divider::after {
+    content:'';flex:1;height:1px;background:rgba(255,255,255,0.08);
+  }
+  .auth-magic-btn {
+    width:100%;padding:12px;background:transparent;
+    border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+    color:rgba(255,255,255,0.6);font-size:13.5px;font-weight:500;
+    cursor:pointer;font-family:inherit;transition:all 0.15s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .auth-magic-btn:hover { border-color:rgba(255,255,255,0.25);color:white; }
+  .auth-error {
+    background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);
+    border-radius:8px;padding:10px 13px;font-size:13px;color:#FCA5A5;
+    margin-bottom:16px;display:none;
+  }
+  .auth-error.show { display:block; }
+  .auth-success {
+    background:rgba(27,107,90,0.15);border:1px solid rgba(27,107,90,0.4);
+    border-radius:8px;padding:10px 13px;font-size:13px;color:#6EE7B7;
+    margin-bottom:16px;display:none;
+  }
+  .auth-success.show { display:block; }
+  .auth-remember {
+    display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;
+    font-size:13px;color:rgba(255,255,255,0.5);
+  }
+  .auth-remember input { accent-color:#1B6B5A;cursor:pointer; }
+  .auth-footer {
+    margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07);
+    text-align:center;font-size:12px;color:rgba(255,255,255,0.25);
+  }
+  /* User menu in topbar */
+  .user-menu-btn {
+    display:flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;
+    border-radius:99px;cursor:pointer;transition:background 0.13s;
+    border:1px solid transparent;
+  }
+  .user-menu-btn:hover { background:var(--surface2);border-color:var(--border); }
+  .user-dropdown {
+    position:absolute;top:calc(100% + 8px);right:0;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-lg);box-shadow:var(--shadow);
+    min-width:220px;overflow:hidden;z-index:999;
+  }
+  .user-dropdown-item {
+    display:flex;align-items:center;gap:10px;padding:11px 14px;
+    font-size:13.5px;cursor:pointer;transition:background 0.12s;
+    color:var(--text);
+  }
+  .user-dropdown-item:hover { background:var(--surface2); }
+  .user-dropdown-item.danger { color:var(--red-text); }
+  .user-dropdown-divider { height:1px;background:var(--border);margin:4px 0; }
+</style>
   `;
 }
 
@@ -9322,9 +9449,1158 @@ document.addEventListener('keydown', e => {
     document.getElementById('global-search')?.blur();
   }
 });
+// ═══════════════════════════════════════════════════════════════════════════
+//  HANSHUB — SUPABASE AUTH + DATA LAYER
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── AUTH STATE ──────────────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await supa.auth.getSession();
+  if (session) {
+    await onSignedIn(session.user);
+  } else {
+    showLoginScreen();
+  }
+
+  // Listen for auth changes (magic link callback, logout)
+  supa.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      await onSignedIn(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      showLoginScreen();
+    }
+  });
+}
+
+async function onSignedIn(authUser) {
+  // Load user profile from public.users
+  const { data: profile } = await supa.from('users')
+    .select('*').eq('auth_id', authUser.id).single();
+
+  if (profile) {
+    window._supaUser = profile;
+    DATA.currentUser = {
+      id:       profile.id,
+      name:     profile.name,
+      email:    profile.email,
+      initials: profile.initials || profile.name.split(' ').map(n=>n[0]).join('').slice(0,2),
+      role:     profile.role,
+      level:    profile.level,
+      color:    profile.color || '#1B6B5A',
+      user_type:profile.user_type
+    };
+    // Update sidebar user display
+    updateSidebarUser(DATA.currentUser);
+  } else {
+    // Profile not yet created (first login race) — create it
+    const name = authUser.user_metadata?.name || authUser.email.split('@')[0];
+    const { data: newProfile } = await supa.from('users').insert({
+      auth_id: authUser.id, name, email: authUser.email,
+      initials: name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+      role: authUser.user_metadata?.role || 'Viewer',
+      level: parseInt(authUser.user_metadata?.level) || 6,
+      user_type: authUser.user_metadata?.user_type || 'guest',
+      color: '#1B6B5A'
+    }).select().single();
+    if (newProfile) { window._supaUser = newProfile; DATA.currentUser = newProfile; }
+  }
+
+  hideLoginScreen();
+  await loadAllData();
+  navigate('dashboard');
+}
+
+function updateSidebarUser(u) {
+  const nameEl = document.getElementById('sidebar-user-name');
+  const roleEl = document.getElementById('sidebar-user-role');
+  const avatarEl = document.getElementById('sidebar-user-avatar');
+  if (nameEl) nameEl.textContent = u.name;
+  if (roleEl) roleEl.textContent = u.role;
+  if (avatarEl) { avatarEl.textContent = u.initials; avatarEl.style.background = u.color || '#1B6B5A'; }
+}
+
+// ── LOGIN ACTIONS ───────────────────────────────────────────────────────────
+function showLoginScreen() {
+  document.getElementById('login-screen')?.classList.remove('hidden');
+}
+function hideLoginScreen() {
+  const el = document.getElementById('login-screen');
+  if (el) { el.classList.add('hidden'); setTimeout(()=>el.style.display='none', 300); }
+}
+
+function switchLoginTab(tab) {
+  const isPassword = tab === 'password';
+  document.getElementById('tab-password').classList.toggle('active', isPassword);
+  document.getElementById('tab-magic').classList.toggle('active', !isPassword);
+  document.getElementById('form-password').style.display = isPassword ? '' : 'none';
+  document.getElementById('form-magic').style.display    = isPassword ? 'none' : '';
+  clearLoginMessages();
+}
+
+function clearLoginMessages() {
+  const err = document.getElementById('login-error');
+  const suc = document.getElementById('login-success');
+  if (err) { err.style.display='none'; err.textContent=''; }
+  if (suc) { suc.style.display='none'; suc.textContent=''; }
+}
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+function showLoginSuccess(msg) {
+  const el = document.getElementById('login-success');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+async function loginPassword() {
+  const email    = document.getElementById('login-email')?.value.trim();
+  const password = document.getElementById('login-password')?.value;
+  const remember = document.getElementById('remember-me')?.checked;
+  clearLoginMessages();
+  if (!email || !password) { showLoginError('Please enter your email and password.'); return; }
+  const btn = document.getElementById('btn-login');
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="material-icons-round">hourglass_empty</span>Signing in...'; }
+
+  const { error } = await supa.auth.signInWithPassword({
+    email, password,
+    options: { expiresIn: remember ? 60*60*24*30 : 60*60*8 }
+  });
+
+  if (error) {
+    showLoginError(error.message === 'Invalid login credentials'
+      ? 'Incorrect email or password. Please try again.'
+      : error.message);
+    if (btn) { btn.disabled=false; btn.innerHTML='<span class="material-icons-round">login</span>Sign in'; }
+  }
+  // onAuthStateChange handles success
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('magic-email')?.value.trim();
+  clearLoginMessages();
+  if (!email) { showLoginError('Please enter your email address.'); return; }
+  const btn = document.getElementById('btn-magic');
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="material-icons-round">hourglass_empty</span>Sending...'; }
+
+  const { error } = await supa.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false } // only existing users
+  });
+
+  if (error) {
+    showLoginError('Could not send magic link. Please check your email or contact your administrator.');
+    if (btn) { btn.disabled=false; btn.innerHTML='<span class="material-icons-round">auto_awesome</span>Send magic link'; }
+  } else {
+    document.getElementById('magic-input-section').style.display = 'none';
+    document.getElementById('magic-sent-section').style.display  = '';
+    const emailLabel = document.getElementById('magic-sent-email');
+    if (emailLabel) emailLabel.textContent = email;
+  }
+}
+
+function resetMagicForm() {
+  document.getElementById('magic-input-section').style.display = '';
+  document.getElementById('magic-sent-section').style.display  = 'none';
+  document.getElementById('magic-email').value = '';
+  const btn = document.getElementById('btn-magic');
+  if (btn) { btn.disabled=false; btn.innerHTML='<span class="material-icons-round">auto_awesome</span>Send magic link'; }
+}
+
+async function logout() {
+  await supa.auth.signOut();
+  DATA.currentUser = {};
+  showLoginScreen();
+  showToast('Signed out successfully','info');
+}
+
+// ── DATA LAYER — load all data from Supabase ────────────────────────────────
+async function loadAllData() {
+  try {
+    const [
+      { data: usersData },
+      { data: projectsData },
+      { data: tasksData },
+      { data: issuesData },
+    ] = await Promise.all([
+      supa.from('users').select('*').order('name'),
+      supa.from('projects').select('*').order('created_at', { ascending: false }),
+      supa.from('tasks').select('*').order('created_at', { ascending: false }),
+      supa.from('issues').select('*').order('created_at', { ascending: false }),
+    ]);
+
+    // Map Supabase data to DATA object
+    if (usersData?.length) {
+      DATA.users = usersData.map(u => ({
+        id: u.id, name: u.name, email: u.email,
+        initials: u.initials || u.name.split(' ').map(n=>n[0]).join('').slice(0,2),
+        role: u.role, level: u.level,
+        color: u.color || '#1B6B5A',
+        status: u.active ? 'active' : 'inactive'
+      }));
+    }
+
+    if (projectsData?.length) {
+      DATA.projects = projectsData.map(p => ({
+        id: p.id, name: p.name, description: p.description,
+        status: p.status, priority: p.priority,
+        progress: p.progress || 0,
+        startDate: p.start_date, due: p.due, endDate: p.end_date,
+        owner: p.owner_id, team: p.team || [],
+        tags: p.tags || [], color: p.color || '#1B6B5A',
+        tasks: tasksData?.filter(t=>t.project_id===p.id).length || 0,
+        completed: tasksData?.filter(t=>t.project_id===p.id&&t.status==='done').length || 0
+      }));
+    }
+
+    if (tasksData?.length) {
+      DATA.tasks = tasksData.map(t => ({
+        id: t.id, title: t.title, description: t.description,
+        status: t.status, priority: t.priority,
+        project: t.project_id, assignee: t.assignee_id,
+        due: t.due, tags: t.tags || [],
+        createdAt: t.created_at
+      }));
+    }
+
+    if (issuesData?.length) {
+      DATA.softwareIssues = issuesData.map(i => ({
+        id: i.id, ref: i.ref || 'BUG-' + i.id.slice(0,3).toUpperCase(),
+        title: i.title, description: i.description,
+        severity: i.severity, status: i.status, type: i.type,
+        module: i.module, environment: i.environment,
+        assignee: i.assignee_id, reporter: i.reporter_id,
+        due: i.due, resolution: i.resolution,
+        comments: i.comments || [], createdAt: i.created_at
+      }));
+    }
+
+    console.log('HansHub data loaded from Supabase ✓');
+  } catch(err) {
+    console.error('Data load error:', err);
+    // Falls back to seed data already in DATA object
+    showToast('Using offline data — check connection','warning');
+  }
+}
+
+// ── REALTIME SUBSCRIPTIONS ──────────────────────────────────────────────────
+function subscribeRealtime() {
+  // Projects
+  supa.channel('projects-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+      loadAllData().then(() => {
+        if (currentScreen === 'projects-list' || currentScreen === 'dashboard') navigate(currentScreen);
+      });
+    }).subscribe();
+
+  // Tasks
+  supa.channel('tasks-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, payload => {
+      loadAllData().then(() => {
+        if (currentScreen === 'my-tasks' || currentScreen === 'dashboard') navigate(currentScreen);
+      });
+    }).subscribe();
+
+  // Issues
+  supa.channel('issues-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, payload => {
+      loadAllData().then(() => {
+        if (currentScreen === 'software-issues') navigate(currentScreen);
+      });
+    }).subscribe();
+}
+
+// ── SAVE HELPERS — used by existing CRUD functions ──────────────────────────
+async function dbSaveProject(p) {
+  const row = {
+    name: p.name, description: p.description || '',
+    status: p.status, priority: p.priority,
+    progress: p.progress || 0,
+    start_date: p.startDate || null, due: p.due || null,
+    owner_id: window._supaUser?.id || null,
+    team: p.team || [], tags: p.tags || [],
+    color: p.color || '#1B6B5A',
+    created_by: window._supaUser?.id || null
+  };
+  if (p._supaId) {
+    const { error } = await supa.from('projects').update(row).eq('id', p._supaId);
+    if (error) { showToast('Save failed: ' + error.message,'error'); return false; }
+  } else {
+    const { data, error } = await supa.from('projects').insert(row).select().single();
+    if (error) { showToast('Save failed: ' + error.message,'error'); return false; }
+    if (data) p._supaId = data.id;
+  }
+  return true;
+}
+
+async function dbSaveTask(t) {
+  const row = {
+    title: t.title, description: t.description || '',
+    status: t.status, priority: t.priority,
+    project_id: t.project || null,
+    assignee_id: t.assignee || null,
+    due: t.due || null, tags: t.tags || [],
+    created_by: window._supaUser?.id || null
+  };
+  if (t._supaId) {
+    const { error } = await supa.from('tasks').update(row).eq('id', t._supaId);
+    if (error) { showToast('Save failed: ' + error.message,'error'); return false; }
+  } else {
+    const { data, error } = await supa.from('tasks').insert(row).select().single();
+    if (error) { showToast('Save failed: ' + error.message,'error'); return false; }
+    if (data) t._supaId = data.id;
+  }
+  await logActivity('Created task', 'Tasks', t.title);
+  return true;
+}
+
+async function dbSaveIssue(issue) {
+  const row = {
+    title: issue.title, description: issue.description || '',
+    severity: issue.severity, status: issue.status, type: issue.type,
+    module: issue.module || '', environment: issue.environment || 'production',
+    assignee_id: issue.assignee || null,
+    reporter_id: window._supaUser?.id || null,
+    due: issue.due || null
+  };
+  if (issue._supaId) {
+    const { error } = await supa.from('issues').update(row).eq('id', issue._supaId);
+    if (error) { showToast('Save failed: ' + error.message,'error'); return false; }
+  } else {
+    const { data, error } = await supa.from('issues').insert(row).select().single();
+    if (error) { showToast('Save failed: ' + error.message,'error'); return false; }
+    if (data) issue._supaId = data.id;
+  }
+  return true;
+}
+
+async function logActivity(action, module, detail) {
+  if (!window._supaUser) return;
+  await supa.from('activity_feed').insert({
+    user_id: window._supaUser.id,
+    action, module, detail,
+    icon: module==='Tasks'?'task_alt':module==='Issues'?'bug_report':'circle',
+    color: '#1B6B5A'
+  });
+}
+
+// ── USER INVITE (Admin function) ─────────────────────────────────────────────
+async function inviteUser(email, name, role, level, userType) {
+  // Create auth user via admin invite
+  const { data, error } = await supa.auth.admin?.inviteUserByEmail(email, {
+    data: { name, role, level: level.toString(), user_type: userType }
+  });
+  if (error) {
+    showToast('Invite failed: ' + error.message, 'error');
+    return false;
+  }
+  showToast(name + ' invited — they will receive an email', 'success');
+  return true;
+}
+
+// ── SIGN UP (for guest/password users) ───────────────────────────────────────
+async function signUpUser(email, password, name, role, userType) {
+  const { error } = await supa.auth.signUp({
+    email, password,
+    options: { data: { name, role, level: 6, user_type: userType } }
+  });
+  if (error) { showToast('Signup failed: ' + error.message, 'error'); return false; }
+  showToast('Account created — check email to confirm', 'success');
+  return true;
+}
+
 initSidebarState();
-initFromHash();
+// Start with auth check — shows login screen if not authenticated
+initAuth().then(() => {
+  subscribeRealtime();
+});
+
+// ════════════════════════════════════════════════════════════════
+//  HANSHUB AUTH LAYER — Supabase
+// ════════════════════════════════════════════════════════════════
+
+// ── STATE ────────────────────────────────────────────────────────
+let _authUser    = null;  // Supabase auth user
+let _profile     = null;  // profiles table row
+let _allProfiles = [];    // all users for dropdowns
+let _userMenuOpen = false;
+
+// ── BOOT ─────────────────────────────────────────────────────────
+async function bootAuth() {
+  // Show loading state
+  document.getElementById('app').style.display = 'none';
+
+  // Listen for auth state changes
+  supa.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      _authUser = session.user;
+      await loadProfile();
+      hideLoginScreen();
+      await initAppWithSupabase();
+    } else if (event === 'SIGNED_OUT') {
+      _authUser = null;
+      _profile  = null;
+      showLoginScreen();
+    }
+  });
+
+  // Check existing session
+  const { data: { session } } = await supa.auth.getSession();
+  if (session) {
+    _authUser = session.user;
+    await loadProfile();
+    hideLoginScreen();
+    await initAppWithSupabase();
+  } else {
+    showLoginScreen();
+  }
+}
+
+// ── LOAD PROFILE ─────────────────────────────────────────────────
+async function loadProfile() {
+  if (!_authUser) return;
+  const { data, error } = await supa
+    .from('profiles')
+    .select('*')
+    .eq('id', _authUser.id)
+    .single();
+
+  if (data) {
+    _profile = data;
+    // Update last_seen
+    await supa.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', _authUser.id);
+  } else {
+    // Profile might not exist yet — create it
+    const newProfile = {
+      id: _authUser.id,
+      email: _authUser.email,
+      full_name: _authUser.user_metadata?.full_name || _authUser.email.split('@')[0],
+      role: 'viewer',
+      level: 6,
+      login_type: 'password'
+    };
+    await supa.from('profiles').insert(newProfile);
+    _profile = newProfile;
+  }
+}
+
+// ── LOAD ALL PROFILES for dropdowns ─────────────────────────────
+async function loadAllProfiles() {
+  const { data } = await supa.from('profiles').select('*').eq('is_active', true).order('full_name');
+  if (data) {
+    _allProfiles = data;
+    // Patch into DATA.users for legacy UI components
+    DATA.users = data.map(p => ({
+      id: p.id,
+      name: p.full_name,
+      email: p.email,
+      role: p.role,
+      level: p.level,
+      initials: p.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+      color: p.avatar_color || '#1B6B5A',
+      department: p.department || '',
+      location: p.location || '',
+      isActive: p.is_active
+    }));
+  }
+}
+
+// ── INIT APP WITH SUPABASE DATA ──────────────────────────────────
+async function initAppWithSupabase() {
+  await loadAllProfiles();
+
+  // Load projects from Supabase
+  const { data: projects } = await supa
+    .from('projects')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (projects && projects.length > 0) {
+    DATA.projects = projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description || '',
+      status: p.status || 'planning',
+      priority: p.priority || 'medium',
+      progress: p.progress || 0,
+      startDate: p.start_date || '',
+      due: p.due_date || '',
+      budget: p.budget || 0,
+      spent: p.spent || 0,
+      owner: p.owner_id || _authUser?.id,
+      team: p.team || [],
+      tags: p.tags || [],
+      tasks: 0,
+      completed: 0,
+      _supaId: p.id
+    }));
+  }
+
+  // Load tasks
+  const { data: tasks } = await supa
+    .from('tasks')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (tasks && tasks.length > 0) {
+    DATA.tasks = tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description || '',
+      status: t.status || 'todo',
+      priority: t.priority || 'medium',
+      project: t.project_id,
+      assignee: t.assignee_id,
+      reporter: t.reporter_id,
+      due: t.due_date || '',
+      tags: t.tags || [],
+      comments: t.comments || [],
+      _supaId: t.id
+    }));
+
+    // Update project task counts
+    DATA.projects.forEach(p => {
+      const pTasks = DATA.tasks.filter(t => t.project === p.id);
+      p.tasks = pTasks.length;
+      p.completed = pTasks.filter(t => t.status === 'done').length;
+      p.progress = pTasks.length ? Math.round(p.completed / pTasks.length * 100) : 0;
+    });
+  }
+
+  // Patch current user
+  if (_profile) {
+    window._currentUserId = _profile.id;
+    // Update topbar with real user
+    updateTopbarUser();
+  }
+
+  // Setup realtime subscriptions
+  setupRealtime();
+
+  // Show app
+  document.getElementById('app').style.display = '';
+  renderDashboardWithUser();
+}
+
+// ── REALTIME SUBSCRIPTIONS ───────────────────────────────────────
+function setupRealtime() {
+  // Tasks realtime
+  supa.channel('tasks-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, payload => {
+      handleRealtimeTask(payload);
+    })
+    .subscribe();
+
+  // Projects realtime
+  supa.channel('projects-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+      handleRealtimeProject(payload);
+    })
+    .subscribe();
+
+  // Notifications realtime
+  supa.channel('notif-changes')
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'notifications',
+      filter: `user_id=eq.${_authUser?.id}`
+    }, payload => {
+      handleRealtimeNotification(payload.new);
+    })
+    .subscribe();
+}
+
+function handleRealtimeTask(payload) {
+  if (payload.eventType === 'INSERT') {
+    const t = payload.new;
+    DATA.tasks.unshift({
+      id: t.id, title: t.title, status: t.status,
+      priority: t.priority, project: t.project_id,
+      assignee: t.assignee_id, due: t.due_date,
+      tags: t.tags || [], comments: t.comments || []
+    });
+    showToast('New task added: ' + t.title, 'info');
+  } else if (payload.eventType === 'UPDATE') {
+    const idx = DATA.tasks.findIndex(x => x.id === payload.new.id);
+    if (idx >= 0) {
+      DATA.tasks[idx] = { ...DATA.tasks[idx], status: payload.new.status, priority: payload.new.priority };
+    }
+  } else if (payload.eventType === 'DELETE') {
+    DATA.tasks = DATA.tasks.filter(x => x.id !== payload.old.id);
+  }
+  // Re-render if on relevant screen
+  if (window._currentScreen === 'my-tasks' || window._currentScreen === 'dashboard') {
+    navigate(window._currentScreen);
+  }
+}
+
+function handleRealtimeProject(payload) {
+  if (payload.eventType === 'INSERT') {
+    DATA.projects.unshift({ id: payload.new.id, name: payload.new.name,
+      status: payload.new.status, progress: 0, tasks: 0, completed: 0 });
+  } else if (payload.eventType === 'UPDATE') {
+    const idx = DATA.projects.findIndex(x => x.id === payload.new.id);
+    if (idx >= 0) DATA.projects[idx] = { ...DATA.projects[idx], ...payload.new };
+  } else if (payload.eventType === 'DELETE') {
+    DATA.projects = DATA.projects.filter(x => x.id !== payload.old.id);
+  }
+}
+
+function handleRealtimeNotification(notif) {
+  DATA.notifications.unshift({
+    id: notif.id, title: notif.title, body: notif.body,
+    type: notif.type, read: false, time: 'just now'
+  });
+  showToast(notif.title, notif.type || 'info');
+  updateBadges();
+}
+
+// ── SUPABASE SAVE FUNCTIONS ──────────────────────────────────────
+async function saveProjectToSupabase(projectData) {
+  const { data, error } = await supa.from('projects').insert({
+    name:        projectData.name,
+    description: projectData.description || '',
+    status:      projectData.status || 'planning',
+    priority:    projectData.priority || 'medium',
+    start_date:  projectData.startDate || null,
+    due_date:    projectData.due || null,
+    budget:      projectData.budget || 0,
+    owner_id:    _authUser?.id,
+    team:        [_authUser?.id],
+    created_by:  _authUser?.id
+  }).select().single();
+
+  if (error) { showToast('Error saving project: ' + error.message, 'error'); return null; }
+  await logActivity('Created project', 'Projects', projectData.name, data.id);
+  return data;
+}
+
+async function saveTaskToSupabase(taskData) {
+  const { data, error } = await supa.from('tasks').insert({
+    title:       taskData.title,
+    description: taskData.description || '',
+    status:      taskData.status || 'todo',
+    priority:    taskData.priority || 'medium',
+    project_id:  taskData.project || null,
+    assignee_id: taskData.assignee || _authUser?.id,
+    reporter_id: _authUser?.id,
+    due_date:    taskData.due || null,
+    created_by:  _authUser?.id
+  }).select().single();
+
+  if (error) { showToast('Error saving task: ' + error.message, 'error'); return null; }
+
+  // Notify assignee if different from creator
+  if (taskData.assignee && taskData.assignee !== _authUser?.id) {
+    await supa.from('notifications').insert({
+      user_id: taskData.assignee,
+      title:   'New task assigned to you',
+      body:    taskData.title,
+      type:    'info',
+      link:    'my-tasks'
+    });
+  }
+
+  await logActivity('Created task', 'Tasks', taskData.title, data.id);
+  return data;
+}
+
+async function updateTaskStatusInSupabase(taskId, newStatus) {
+  const { error } = await supa.from('tasks').update({
+    status:     newStatus,
+    updated_at: new Date().toISOString()
+  }).eq('id', taskId);
+
+  if (!error) await logActivity('Updated task status', 'Tasks', newStatus, taskId);
+}
+
+async function logActivity(action, module, detail, recordId) {
+  if (!_authUser) return;
+  await supa.from('activity_feed').insert({
+    user_id:   _authUser.id,
+    action,
+    module,
+    detail,
+    record_id: recordId || null,
+    icon:      module === 'Tasks' ? 'task_alt' : module === 'Projects' ? 'folder' : 'circle',
+    color:     '#1B6B5A'
+  });
+}
+
+// ── TOPBAR USER DISPLAY ──────────────────────────────────────────
+function updateTopbarUser() {
+  const topbarRight = document.querySelector('.topbar-right');
+  if (!topbarRight || !_profile) return;
+
+  const initials = _profile.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  const color    = _profile.avatar_color || '#1B6B5A';
+
+  // Check if user menu already injected
+  if (document.getElementById('user-menu-trigger')) return;
+
+  const userMenuHtml = `
+    <div style="position:relative" id="user-menu-wrap">
+      <div class="user-menu-btn" id="user-menu-trigger" onclick="toggleUserMenu()">
+        <div class="avatar" style="width:30px;height:30px;font-size:11px;background:${color}">${initials}</div>
+        <span style="font-size:13px;font-weight:500;color:var(--text)">${_profile.full_name.split(' ')[0]}</span>
+        <span class="material-icons-round" style="font-size:14px;color:var(--text3)">expand_more</span>
+      </div>
+    </div>`;
+
+  // Insert before last child of topbar-right
+  const notifBtn = topbarRight.querySelector('[onclick*="notifications"]');
+  if (notifBtn) {
+    notifBtn.insertAdjacentHTML('afterend', userMenuHtml);
+  } else {
+    topbarRight.insertAdjacentHTML('beforeend', userMenuHtml);
+  }
+}
+
+function toggleUserMenu() {
+  _userMenuOpen = !_userMenuOpen;
+  const wrap = document.getElementById('user-menu-wrap');
+  if (!wrap) return;
+
+  // Remove existing dropdown
+  const existing = document.getElementById('user-dropdown');
+  if (existing) existing.remove();
+
+  if (!_userMenuOpen) return;
+
+  const initials = _profile?.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() || '?';
+  const color    = _profile?.avatar_color || '#1B6B5A';
+  const role     = _profile?.role?.replace('_',' ') || 'viewer';
+
+  wrap.insertAdjacentHTML('beforeend', `
+    <div class="user-dropdown" id="user-dropdown">
+      <div style="padding:14px 14px 10px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="avatar" style="width:36px;height:36px;font-size:13px;background:${color}">${initials}</div>
+          <div>
+            <div style="font-size:13.5px;font-weight:600">${_profile?.full_name || 'User'}</div>
+            <div style="font-size:12px;color:var(--text3)">${_profile?.email || ''}</div>
+            <div style="font-size:11px;color:var(--brand);font-weight:600;text-transform:capitalize;margin-top:2px">${role}</div>
+          </div>
+        </div>
+      </div>
+      <div class="user-dropdown-item" onclick="navigate('profile');toggleUserMenu()">
+        <span class="material-icons-round" style="font-size:16px">person</span>My Profile
+      </div>
+      <div class="user-dropdown-item" onclick="navigate('settings');toggleUserMenu()">
+        <span class="material-icons-round" style="font-size:16px">settings</span>Settings
+      </div>
+      <div class="user-dropdown-divider"></div>
+      <div class="user-dropdown-item danger" onclick="signOut()">
+        <span class="material-icons-round" style="font-size:16px">logout</span>Sign Out
+      </div>
+    </div>`);
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function closeMenu(e) {
+      if (!document.getElementById('user-menu-wrap')?.contains(e.target)) {
+        const dd = document.getElementById('user-dropdown');
+        if (dd) dd.remove();
+        _userMenuOpen = false;
+        document.removeEventListener('click', closeMenu);
+      }
+    });
+  }, 10);
+}
+
+// ── RENDER DASHBOARD WITH REAL USER ─────────────────────────────
+function renderDashboardWithUser() {
+  if (_profile) {
+    // Patch currentUser for legacy components
+    window.currentUser = {
+      id: _profile.id,
+      name: _profile.full_name,
+      role: _profile.role,
+      level: _profile.level,
+      initials: _profile.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+      color: _profile.avatar_color || '#1B6B5A'
+    };
+  }
+  navigate('dashboard');
+}
+
+// ── SIGN OUT ─────────────────────────────────────────────────────
+async function signOut() {
+  await supa.auth.signOut();
+  _authUser  = null;
+  _profile   = null;
+  _userMenuOpen = false;
+  const dd = document.getElementById('user-dropdown');
+  if (dd) dd.remove();
+  showLoginScreen();
+  showToast('Signed out successfully', 'info');
+}
+
+// ── LOGIN SCREEN ─────────────────────────────────────────────────
+function showLoginScreen() {
+  document.getElementById('app').style.display = 'none';
+
+  let overlay = document.getElementById('auth-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'auth-overlay';
+    overlay.className = 'auth-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = `
+    <div class="auth-card">
+      <!-- Logo -->
+      <div class="auth-logo">
+        <div class="auth-logo-mark">H</div>
+        <div>
+          <div class="auth-logo-text">HansHub</div>
+          <div class="auth-logo-sub">Hans Infomatic Pvt. Ltd.</div>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-subtitle">Sign in to your workspace</div>
+
+      <!-- Error / Success messages -->
+      <div class="auth-error" id="auth-error"></div>
+      <div class="auth-success" id="auth-success"></div>
+
+      <!-- Email + Password form -->
+      <div id="auth-form-password">
+        <div class="auth-field">
+          <label class="auth-label">Email address</label>
+          <input class="auth-input" id="auth-email" type="email"
+            placeholder="you@hansinfomatic.com" autocomplete="email"
+            onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="auth-password" type="password"
+            placeholder="••••••••••••" autocomplete="current-password"
+            onkeydown="if(event.key==='Enter')loginWithPassword()">
+        </div>
+        <label class="auth-remember">
+          <input type="checkbox" id="auth-remember" checked>
+          Keep me signed in for 30 days
+        </label>
+        <button class="auth-btn" id="auth-submit-btn" onclick="loginWithPassword()">
+          Sign in
+        </button>
+      </div>
+
+      <!-- Divider -->
+      <div class="auth-divider">or</div>
+
+      <!-- Magic link -->
+      <div id="auth-form-magic">
+        <button class="auth-magic-btn" onclick="showMagicLinkForm()">
+          <span class="material-icons-round" style="font-size:16px">email</span>
+          Sign in with magic link
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="auth-footer">
+        Hans Infomatic Pvt. Ltd. · Internal Use Only
+      </div>
+    </div>`;
+
+  overlay.style.display = 'flex';
+
+  // Auto-focus email
+  setTimeout(() => document.getElementById('auth-email')?.focus(), 100);
+}
+
+function hideLoginScreen() {
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.style.display = 'none';
+  document.getElementById('app').style.display = '';
+}
+
+// ── PASSWORD LOGIN ────────────────────────────────────────────────
+async function loginWithPassword() {
+  const email    = document.getElementById('auth-email')?.value.trim();
+  const password = document.getElementById('auth-password')?.value;
+  const remember = document.getElementById('auth-remember')?.checked;
+  const btn      = document.getElementById('auth-submit-btn');
+  const errEl    = document.getElementById('auth-error');
+
+  if (!email || !password) {
+    showAuthError('Please enter your email and password.');
+    return;
+  }
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+  errEl.classList.remove('show');
+
+  const { data, error } = await supa.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    showAuthError(
+      error.message.includes('Invalid') ? 'Incorrect email or password.' :
+      error.message.includes('Email not confirmed') ? 'Please confirm your email first.' :
+      error.message
+    );
+    document.getElementById('auth-password').classList.add('error');
+    return;
+  }
+
+  // Set session duration
+  if (remember) {
+    await supa.auth.updateUser({});
+  }
+
+  // Success — onAuthStateChange handles the rest
+}
+
+// ── MAGIC LINK ────────────────────────────────────────────────────
+function showMagicLinkForm() {
+  const magicDiv = document.getElementById('auth-form-magic');
+  magicDiv.innerHTML = `
+    <div class="auth-field">
+      <label class="auth-label">Email address</label>
+      <input class="auth-input" id="magic-email" type="email"
+        placeholder="you@hansinfomatic.com"
+        onkeydown="if(event.key==='Enter')sendMagicLink()">
+    </div>
+    <button class="auth-btn" id="magic-submit-btn" onclick="sendMagicLink()">
+      Send magic link
+    </button>
+    <button class="auth-magic-btn" style="margin-top:10px" onclick="showLoginScreen()">
+      Back to password login
+    </button>`;
+
+  // Pre-fill email if already typed
+  const existingEmail = document.getElementById('auth-email')?.value;
+  if (existingEmail) document.getElementById('magic-email').value = existingEmail;
+
+  setTimeout(() => document.getElementById('magic-email')?.focus(), 50);
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('magic-email')?.value.trim();
+  const btn   = document.getElementById('magic-submit-btn');
+
+  if (!email) { showAuthError('Please enter your email address.'); return; }
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  const { error } = await supa.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.href,
+      shouldCreateUser: false  // only existing users
+    }
+  });
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+
+  if (error) {
+    showAuthError(error.message);
+    return;
+  }
+
+  showAuthSuccess('Magic link sent! Check your email inbox and click the link to sign in.');
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  if (el) { el.textContent = msg; el.classList.add('show'); }
+}
+function showAuthSuccess(msg) {
+  const errEl = document.getElementById('auth-error');
+  const sucEl = document.getElementById('auth-success');
+  if (errEl) errEl.classList.remove('show');
+  if (sucEl) { sucEl.textContent = msg; sucEl.classList.add('show'); }
+}
+
+// ── INVITE NEW USER (Admin only) ─────────────────────────────────
+async function inviteUser(email, fullName, role, level) {
+  if (!_profile || _profile.level > 2) {
+    showToast('Only admins can invite users', 'error');
+    return;
+  }
+
+  const { data, error } = await supa.auth.admin?.inviteUserByEmail
+    ? await supa.auth.admin.inviteUserByEmail(email, {
+        data: { full_name: fullName, role, level: parseInt(level), login_type: 'magic_link' }
+      })
+    : { error: { message: 'Admin API not available from client' } };
+
+  if (error) {
+    // Fallback: create user via SQL edge function approach
+    // For now show instructions
+    showToast('Send invite email manually from Supabase Auth → Users → Invite', 'info');
+    return;
+  }
+
+  showToast(`Invitation sent to ${email}`, 'success');
+}
+
+// ── SAVE NEW PROJECT (overrides old mock function) ───────────────
+const _origSaveNewProject = window.saveNewProject;
+window.saveNewProject = async function() {
+  const name = document.getElementById('np-name')?.value?.trim();
+  if (!name) { showToast('Project name required', 'error'); return; }
+
+  const projectData = {
+    name,
+    description:  document.getElementById('np-desc')?.value || '',
+    status:       document.getElementById('np-status')?.value || 'planning',
+    priority:     document.getElementById('np-priority')?.value || 'medium',
+    startDate:    document.getElementById('np-start')?.value || null,
+    due:          document.getElementById('np-due')?.value || null,
+    budget:       parseInt(document.getElementById('np-budget')?.value) || 0,
+  };
+
+  const saved = await saveProjectToSupabase(projectData);
+  if (saved) {
+    // Add to local DATA
+    DATA.projects.unshift({
+      id: saved.id, name: saved.name, description: saved.description,
+      status: saved.status, priority: saved.priority, progress: 0,
+      startDate: saved.start_date, due: saved.due_date,
+      budget: saved.budget, spent: 0, owner: saved.owner_id,
+      team: [saved.owner_id], tasks: 0, completed: 0, tags: []
+    });
+    closeModal();
+    showToast('Project created', 'success');
+    navigate('projects-list');
+  }
+};
+
+// ── OVERRIDE saveNewTask to persist ─────────────────────────────
+const _origSaveNewTask = window.saveNewTask;
+window.saveNewTask = async function() {
+  const title = document.getElementById('nt-title')?.value?.trim();
+  if (!title) { showToast('Task title required', 'error'); return; }
+
+  const taskData = {
+    title,
+    description: document.getElementById('nt-desc')?.value || '',
+    status:      document.getElementById('nt-status')?.value || 'todo',
+    priority:    document.getElementById('nt-priority')?.value || 'medium',
+    project:     document.getElementById('nt-project')?.value || null,
+    assignee:    document.getElementById('nt-assignee')?.value || _authUser?.id,
+    due:         document.getElementById('nt-due')?.value || null,
+  };
+
+  const saved = await saveTaskToSupabase(taskData);
+  if (saved) {
+    DATA.tasks.unshift({
+      id: saved.id, title: saved.title, status: saved.status,
+      priority: saved.priority, project: saved.project_id,
+      assignee: saved.assignee_id, due: saved.due_date,
+      tags: [], comments: []
+    });
+    closeModal();
+    showToast('Task created', 'success');
+    navigate('my-tasks');
+  }
+};
+
+// ── STATUS HELPERS for current user ─────────────────────────────
+function isAdmin() { return _profile && _profile.level <= 2; }
+function isBizLead() { return _profile && _profile.level <= 3; }
+function getCurrentUserProfile() { return _profile; }
+
+// ── BOOT ON DOM READY ────────────────────────────────────────────
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootAuth);
+} else {
+  bootAuth();
+}
+
 </script>
+
+<!-- ═══════════════════════════════════════════════════════
+     HANSHUB LOGIN SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <!-- Logo -->
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <span class="material-icons-round" style="color:white;font-size:22px">hub</span>
+      </div>
+      <div>
+        <div class="login-title">HansHub</div>
+        <div class="login-sub">Hans Infomatic Pvt. Ltd.</div>
+      </div>
+    </div>
+
+    <!-- Login Mode Tabs -->
+    <div class="login-tabs">
+      <div class="login-tab active" id="tab-password" onclick="switchLoginTab('password')">
+        <span class="material-icons-round" style="font-size:14px;vertical-align:middle;margin-right:4px">lock</span>
+        Password
+      </div>
+      <div class="login-tab" id="tab-magic" onclick="switchLoginTab('magic')">
+        <span class="material-icons-round" style="font-size:14px;vertical-align:middle;margin-right:4px">auto_awesome</span>
+        Magic Link
+      </div>
+    </div>
+
+    <!-- Error / Success banners -->
+    <div id="login-error" class="login-error"></div>
+    <div id="login-success" class="login-success"></div>
+
+    <!-- PASSWORD FORM -->
+    <div id="form-password">
+      <div class="form-group">
+        <div class="form-label">Email address</div>
+        <input class="form-control" type="email" id="login-email" placeholder="you@hansinfomatic.com"
+          onkeydown="if(event.key==='Enter')loginPassword()">
+      </div>
+      <div class="form-group">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="form-label">Password</div>
+          <span style="font-size:12px;color:var(--brand);cursor:pointer" onclick="switchLoginTab('magic')">Forgot password?</span>
+        </div>
+        <input class="form-control" type="password" id="login-password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')loginPassword()">
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+        <input type="checkbox" id="remember-me" checked style="width:16px;height:16px;accent-color:var(--brand)">
+        <label for="remember-me" style="font-size:13px;color:var(--text2);cursor:pointer">Remember me for 30 days</label>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px" onclick="loginPassword()" id="btn-login">
+        <span class="material-icons-round">login</span>Sign in
+      </button>
+    </div>
+
+    <!-- MAGIC LINK FORM -->
+    <div id="form-magic" style="display:none">
+      <div id="magic-input-section">
+        <div class="form-group">
+          <div class="form-label">Email address</div>
+          <input class="form-control" type="email" id="magic-email" placeholder="you@hansinfomatic.com"
+            onkeydown="if(event.key==='Enter')sendMagicLink()">
+        </div>
+        <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px" onclick="sendMagicLink()" id="btn-magic">
+          <span class="material-icons-round">auto_awesome</span>Send magic link
+        </button>
+      </div>
+      <div id="magic-sent-section" style="display:none" class="magic-sent">
+        <span class="material-icons-round">mark_email_read</span>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px">Check your email</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.6">We sent a magic link to<br><strong id="magic-sent-email"></strong></div>
+        <button class="btn btn-secondary" style="margin-top:16px" onclick="resetMagicForm()">Use a different email</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:20px;text-align:center;font-size:12px;color:var(--text3)">
+      Hans Infomatic Pvt. Ltd. · Internal use only
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toast-container"></div>
 </body>
 </html>
