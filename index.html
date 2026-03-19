@@ -1390,7 +1390,7 @@ function renderTaskDetail(taskId) {
   const t = DATA.tasks.find(x=>x.id===taskId);
   if (!t) return '<div class="empty-state"><span class="material-icons-round">error</span><p>Task not found.</p></div>';
   const p = DATA.projects.find(x=>x.id===t.project);
-  const user = DATA.users.find(u=>u.id===t.assignee);
+  const user = DATA.users.find(u=>String(u.id)===String(t.assignee));
   return `
     <div style="max-width:800px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
@@ -1620,9 +1620,11 @@ function renderProjectsList() {
 
 // ==================== PROJECT DETAIL ====================
 function renderProjectDetail(projectId) {
-  const pid = projectId || 1;
-  const p = DATA.projects.find(x=>x.id===pid) || DATA.projects[0];
-  const projectTasks = DATA.tasks.filter(t=>t.project===p.id);
+  const pid = projectId || window._navCtx;
+  // Match by UUID string, numeric, or fall back to first project
+  const p = DATA.projects.find(x => String(x.id) === String(pid)) || DATA.projects[0];
+  if (!p) return '<div class="empty-state"><span class="material-icons-round">folder_open</span><p>No projects yet.</p><button class="btn btn-primary" onclick="navigate(\'new-project\')">Create Project</button></div>';
+  const projectTasks = DATA.tasks.filter(t=>String(t.project)===String(p.id));
   if (window._lastPid && window._lastPid !== pid) currentTab['project-detail'] = 'overview';
   window._lastPid = pid;
   const tab = currentTab['project-detail'] || 'overview';
@@ -1630,7 +1632,7 @@ function renderProjectDetail(projectId) {
     <div style="max-width:960px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
         <button class="btn btn-secondary btn-sm" onclick="navigate('projects-list')"><span class="material-icons-round">arrow_back</span>Projects</button>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3)">${p.code}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3)">${p.status||'planning'}</span>
         <span class="badge-status ${p.status}">${p.status.replace('-',' ')}</span>
         <span class="badge-priority ${p.priority}">${p.priority}</span>
       </div>
@@ -1664,8 +1666,8 @@ function renderProjectOverview(p) {
     <div class="card">
       <div class="card-title" style="margin-bottom:14px">Project Info</div>
       <div class="info-row"><span class="material-icons-round">calendar_today</span><span class="info-row-label">Due Date</span><span class="info-row-value">${formatDate(p.due)}</span></div>
-      <div class="info-row"><span class="material-icons-round">label</span><span class="info-row-label">Category</span><span class="info-row-value"><span class="tag">${p.category}</span></span></div>
-      <div class="info-row"><span class="material-icons-round">person</span><span class="info-row-label">Owner</span><span class="info-row-value">${DATA.users.find(u=>u.id===p.owner)?.name}</span></div>
+      <div class="info-row"><span class="material-icons-round">label</span><span class="info-row-label">Status</span><span class="info-row-value"><span class="badge-status ${p.status}">${(p.status||'planning').replace('-',' ')}</span></span></div>
+      <div class="info-row"><span class="material-icons-round">person</span><span class="info-row-label">Owner</span><span class="info-row-value">${DATA.users.find(u=>String(u.id)===String(p.owner))?.name || 'You'}</span></div>
       <div class="info-row"><span class="material-icons-round">group</span><span class="info-row-label">Team size</span><span class="info-row-value">${p.team.length} members</span></div>
     </div>
   `;
@@ -1686,7 +1688,7 @@ function renderProjectTasks(p, projectTasks) {
               <tr class="clickable-row" onclick="navigate('task-detail',${t.id})">
                 <td onclick="event.stopPropagation()"><div class="check-box ${t.status==='done'?'checked':''}" onclick="toggleTaskStatus(${t.id})"></div></td>
                 <td><div style="font-weight:500">${t.title}</div></td>
-                <td>${DATA.users.find(u=>u.id===t.assignee)?.name||'—'}</td>
+                <td>${DATA.users.find(u=>String(u.id)===String(t.assignee))?.name||'—'}</td>
                 <td><span class="badge-priority ${t.priority}">${t.priority}</span></td>
                 <td><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></td>
                 <td style="font-size:13px;color:${isOverdue(t.due)&&t.status!=='done'?'var(--red)':'var(--text2)'}">${formatDate(t.due)}</td>
@@ -1705,7 +1707,7 @@ function renderProjectTeam(p) {
     <div class="grid-auto">
       ${p.team.map(uid=>{
         const u=DATA.users.find(x=>x.id===uid);
-        const userTasks = DATA.tasks.filter(t=>t.project===p.id&&t.assignee===uid);
+        const userTasks = DATA.tasks.filter(t=>String(t.project)===String(p.id)&&t.assignee===uid);
         return `<div class="card card-sm" style="cursor:pointer" onclick="window.UM_STATE.activeUserId=${u.id};window.UM_STATE.editTab='assign';navigate('user-management')">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
             <div class="avatar" style="width:40px;height:40px;background:${u?.color};font-size:14px">${u?.initials}</div>
@@ -1764,7 +1766,7 @@ function renderPerformance() {
       <div class="card">
         <div class="card-title" style="margin-bottom:14px">Team Workload</div>
         ${DATA.users.slice(0,4).map(u=>{
-          const assigned = DATA.tasks.filter(t=>t.assignee===u.id&&t.status!=='done').length;
+          const assigned = DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status!=='done').length;
           const pct = Math.min(100, assigned*20);
           return `<div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
@@ -1785,7 +1787,7 @@ function renderPerformance() {
 // ==================== KANBAN ====================
 function renderKanban(projectId) {
   const pid = projectId || null;
-  const tasks = pid ? DATA.tasks.filter(t=>t.project===pid) : DATA.tasks;
+  const tasks = pid ? DATA.tasks.filter(t=>String(t.project)===String(pid)) : DATA.tasks;
   const columns = ['planning','pending','in-progress','review','done'];
   const colLabels = {planning:'Planning',pending:'To Do','in-progress':'In Progress',review:'Review',done:'Done'};
   const colColors = {planning:'#7C3AED',pending:'#6B6860','in-progress':'#2563EB',review:'#0D9488',done:'#16A34A'};
@@ -1977,9 +1979,9 @@ function renderTeam() {
     </div>
     <div class="grid-auto">
       ${DATA.users.map(u=>{
-        const assigned = DATA.tasks.filter(t=>t.assignee===u.id&&t.status!=='done').length;
-        const done = DATA.tasks.filter(t=>t.assignee===u.id&&t.status==='done').length;
-        const projects = [...new Set(DATA.tasks.filter(t=>t.assignee===u.id).map(t=>t.project))].length;
+        const assigned = DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status!=='done').length;
+        const done = DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status==='done').length;
+        const projects = [...new Set(DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).map(t=>t.project))].length;
         return `
           <div class="card" style="cursor:pointer" onclick="window.UM_STATE.activeUserId=${u.id};window.UM_STATE.editTab='profile';navigate('user-management')" style="cursor:pointer" onclick="showUserDetail(${u.id})">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
@@ -2388,8 +2390,8 @@ function renderSettingsTeam() {
       </div>
       <div style="display:flex;flex-direction:column;gap:0">
         ${DATA.users.map(u=>{
-          const tasks  = DATA.tasks.filter(t=>t.assignee===u.id).length;
-          const projs  = [...new Set(DATA.tasks.filter(t=>t.assignee===u.id).map(t=>t.project))].length;
+          const tasks  = DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).length;
+          const projs  = [...new Set(DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).map(t=>t.project))].length;
           const rc     = roleColors[u.role]||'#999';
           return `
           <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
@@ -3912,7 +3914,7 @@ function renderGTMProjects() {
             <td><div style="font-weight:500">${p.name}</div><div style="font-size:11.5px;color:var(--text3)">${p.code}</div></td>
             <td><span class="badge-status ${p.status}">${p.status.replace('-',' ')}</span></td>
             <td style="min-width:120px"><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${p.progress}%"></div></div><span style="font-size:12px;color:var(--text3)">${p.progress}%</span></div></td>
-            <td style="font-size:13px">${DATA.users.find(u=>u.id===p.owner)?.name}</td>
+            <td style="font-size:13px">${DATA.users.find(u=>String(u.id)===String(p.owner))?.name}</td>
             <td style="font-size:13px;color:var(--text2)">${formatDate(p.due)}</td>
             <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();navigate('project-detail',${p.id})"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
           </tr>`).join('')}
@@ -6062,7 +6064,7 @@ function renderSprintBoard() {
         <!-- Task cards -->
         <div class="sb-cards" id="cards-${stage.id}" style="display:flex;flex-direction:column;gap:8px;min-height:48px">
           ${stageTasks.map(t => {
-            const assigneeUser = DATA.users.find(u=>u.id===t.assignee);
+            const assigneeUser = DATA.users.find(u=>String(u.id)===String(t.assignee));
             const overdue = isOverdue(t.due) && t.status !== 'done';
             return `
             <div class="sb-card" id="card-${t.id}" data-task="${t.id}" draggable="true"
@@ -6423,7 +6425,7 @@ function renderProductBacklog() {
           <td><div style="font-weight:500">${t.title}</div><div style="display:flex;gap:4px;margin-top:3px">${t.tags.map(tag=>`<span class="tag">${tag}</span>`).join('')}</div></td>
           <td style="font-size:13px">${projectName(t.project)}</td>
           <td><span class="badge-priority ${t.priority}">${t.priority}</span></td>
-          <td style="font-size:13px">${DATA.users.find(u=>u.id===t.assignee)?.name||'—'}</td>
+          <td style="font-size:13px">${DATA.users.find(u=>String(u.id)===String(t.assignee))?.name||'—'}</td>
           <td><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></td>
           <td style="font-size:13px;color:var(--text2)">${formatDate(t.due)}</td>
         </tr>`).join('')}</tbody>
@@ -7133,8 +7135,8 @@ function renderAnalytics() {
       <div class="card-title" style="margin-bottom:14px">Team Task Distribution</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
         ${DATA.users.map(u=>{
-          const open=DATA.tasks.filter(t=>t.assignee===u.id&&t.status!=='done').length;
-          const done=DATA.tasks.filter(t=>t.assignee===u.id&&t.status==='done').length;
+          const open=DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status!=='done').length;
+          const done=DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status==='done').length;
           return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface2);border-radius:var(--radius)">
             <div class="avatar" style="width:32px;height:32px;background:${u.color};font-size:12px;flex-shrink:0">${u.initials}</div>
             <div><div style="font-size:13px;font-weight:500">${u.name}</div><div style="font-size:12px;color:var(--text3)">${open} open · ${done} done</div></div>
@@ -7273,8 +7275,8 @@ function renderUserList() {
         </thead>
         <tbody>
           ${users.map(u => {
-            const tasks    = DATA.tasks.filter(t=>t.assignee===u.id).length;
-            const projs    = [...new Set(DATA.tasks.filter(t=>t.assignee===u.id).map(t=>t.project))].length;
+            const tasks    = DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).length;
+            const projs    = [...new Set(DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).map(t=>t.project))].length;
             const issues   = DATA.softwareIssues.filter(i=>i.assignee===u.id).length;
             const evts     = (window.EVENTS_DATA||[]).filter(ev=>ev.attendees.includes(u.name)).length;
             const rc       = roleColors[u.role]||'#999';
@@ -7456,9 +7458,9 @@ function renderUMProfileTab(u) {
       <div class="card" style="margin-bottom:14px">
         <div class="card-title" style="margin-bottom:12px">Work Summary</div>
         ${[
-          {label:'Tasks Assigned',  val:DATA.tasks.filter(t=>t.assignee===u.id).length,            color:'var(--blue)',   icon:'task_alt'},
-          {label:'Open Tasks',      val:DATA.tasks.filter(t=>t.assignee===u.id&&t.status!=='done').length, color:'var(--amber)', icon:'pending'},
-          {label:'Tasks Done',      val:DATA.tasks.filter(t=>t.assignee===u.id&&t.status==='done').length, color:'var(--green)', icon:'check_circle'},
+          {label:'Tasks Assigned',  val:DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).length,            color:'var(--blue)',   icon:'task_alt'},
+          {label:'Open Tasks',      val:DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status!=='done').length, color:'var(--amber)', icon:'pending'},
+          {label:'Tasks Done',      val:DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status==='done').length, color:'var(--green)', icon:'check_circle'},
           {label:'Issues',          val:DATA.softwareIssues.filter(i=>i.assignee===u.id).length,   color:'var(--red)',    icon:'bug_report'},
           {label:'Events',          val:(window.EVENTS_DATA||[]).filter(ev=>ev.attendees.includes(u.name)).length, color:'var(--teal)', icon:'event'},
         ].map(s=>`
@@ -7484,7 +7486,7 @@ function renderUMProfileTab(u) {
 
 // ── TAB: ASSIGNMENTS ─────────────────────────────────────────────────────────
 function renderUMAssignTab(u) {
-  const userTasks   = DATA.tasks.filter(t=>t.assignee===u.id);
+  const userTasks   = DATA.tasks.filter(t=>String(t.assignee)===String(u.id));
   const userIssues  = DATA.softwareIssues.filter(i=>i.assignee===u.id);
   const userEvents  = (window.EVENTS_DATA||[]).filter(ev=>ev.attendees.includes(u.name));
   const allTasks    = DATA.tasks;
@@ -7645,7 +7647,7 @@ function renderUMAssignTab(u) {
           <thead><tr><th>Project</th><th>Status</th><th>Tasks by this user</th><th style="text-align:center">Access</th><th></th></tr></thead>
           <tbody>
             ${allProjects.map(p=>{
-              const userTasksInProj = DATA.tasks.filter(t=>t.project===p.id&&t.assignee===u.id).length;
+              const userTasksInProj = DATA.tasks.filter(t=>String(t.project)===String(p.id)&&String(t.assignee)===String(u.id)).length;
               const isMember = userTasksInProj > 0;
               return `<tr style="${!isMember?'opacity:0.5':''}">
                 <td style="font-weight:500;font-size:13.5px">${p.name}</td>
@@ -7672,7 +7674,7 @@ function renderUMAssignTab(u) {
 
 // ── TAB: ACTIVITY ─────────────────────────────────────────────────────────────
 function renderUMActivityTab(u) {
-  const userTasks   = DATA.tasks.filter(t=>t.assignee===u.id);
+  const userTasks   = DATA.tasks.filter(t=>String(t.assignee)===String(u.id));
   const userIssues  = DATA.softwareIssues.filter(i=>i.assignee===u.id);
   const done        = userTasks.filter(t=>t.status==='done').length;
   const total       = userTasks.length;
@@ -10276,7 +10278,7 @@ async function loadTasksFromDB() {
       }));
       // Recalc project progress
       DATA.projects.forEach(p => {
-        const pt = DATA.tasks.filter(t => t.project === p.id);
+        const pt = DATA.tasks.filter(t => String(t.project)===String(p.id));
         p.tasks     = pt.length;
         p.completed = pt.filter(t => t.status === 'done').length;
         p.progress  = pt.length ? Math.round(p.completed / pt.length * 100) : 0;
