@@ -6462,6 +6462,131 @@ function renderSprintBoard() {
   .user-dropdown-item:hover { background:var(--surface2); }
   .user-dropdown-item.danger { color:var(--red-text); }
   .user-dropdown-divider { height:1px;background:var(--border);margin:4px 0; }
+
+  /* ═══════════════════════════════════════════════
+     AUTH / LOGIN SCREEN
+  ═══════════════════════════════════════════════ */
+  .auth-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    background: #0a0e1a;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(27,107,90,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(37,99,235,0.10) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+  .auth-wrap {
+    display: flex; width: 100%; max-width: 960px;
+    min-height: 560px; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  }
+  .auth-left {
+    flex: 1; background: linear-gradient(145deg, #0f2027 0%, #1B6B5A 60%, #134e3f 100%);
+    padding: 56px 48px; display: flex; flex-direction: column;
+    justify-content: space-between; position: relative; overflow: hidden;
+  }
+  .auth-left::before {
+    content: ''; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+  .auth-brand { position: relative; z-index: 1; }
+  .auth-brand-logo {
+    width: 48px; height: 48px; background: rgba(255,255,255,0.15);
+    border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700; color: white; margin-bottom: 20px;
+    backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+  }
+  .auth-brand-name { font-size: 28px; font-weight: 700; color: white; letter-spacing: -0.5px; }
+  .auth-brand-sub  { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+  .auth-tagline    { position: relative; z-index: 1; }
+  .auth-tagline-text {
+    font-size: 32px; font-weight: 700; color: white;
+    line-height: 1.25; letter-spacing: -0.5px; margin-bottom: 16px;
+  }
+  .auth-tagline-desc { font-size: 15px; color: rgba(255,255,255,0.55); line-height: 1.6; }
+  .auth-features { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
+  .auth-feature {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: rgba(255,255,255,0.7);
+  }
+  .auth-feature-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,0.5); flex-shrink: 0;
+  }
+  .auth-right {
+    width: 420px; background: #ffffff;
+    padding: 56px 48px; display: flex; flex-direction: column; justify-content: center;
+  }
+  .auth-form-title { font-size: 26px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .auth-form-sub   { font-size: 14px; color: #64748b; margin-bottom: 36px; }
+  .auth-field { margin-bottom: 20px; }
+  .auth-field label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: #374151; margin-bottom: 6px;
+  }
+  .auth-field input {
+    width: 100%; padding: 11px 14px; border: 1.5px solid #e5e7eb;
+    border-radius: 8px; font-size: 14px; color: #111827;
+    background: #f9fafb; transition: all 0.15s; box-sizing: border-box;
+    outline: none;
+  }
+  .auth-field input:focus {
+    border-color: #1B6B5A; background: white;
+    box-shadow: 0 0 0 3px rgba(27,107,90,0.1);
+  }
+  .auth-field input.error { border-color: #ef4444; background: #fef2f2; }
+  .auth-remember {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: #6b7280; margin-bottom: 24px; cursor: pointer;
+  }
+  .auth-remember input[type=checkbox] { accent-color: #1B6B5A; width: 15px; height: 15px; }
+  .auth-submit {
+    width: 100%; padding: 13px; background: #1B6B5A; color: white;
+    border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; display: flex;
+    align-items: center; justify-content: center; gap: 8px;
+  }
+  .auth-submit:hover   { background: #155a4a; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(27,107,90,0.3); }
+  .auth-submit:active  { transform: translateY(0); }
+  .auth-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+  .auth-submit.loading::after {
+    content: ''; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white; border-radius: 50%; animation: auth-spin 0.7s linear infinite;
+  }
+  @keyframes auth-spin { to { transform: rotate(360deg); } }
+  .auth-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 20px 0; color: #9ca3af; font-size: 13px;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: ''; flex: 1; height: 1px; background: #e5e7eb;
+  }
+  .auth-magic {
+    width: 100%; padding: 11px; background: white; color: #374151;
+    border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .auth-magic:hover { border-color: #1B6B5A; color: #1B6B5A; background: #f0fdf9; }
+  .auth-error {
+    background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+    padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    margin-bottom: 16px; display: none;
+  }
+  .auth-error.show { display: block; }
+  .auth-success {
+    background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a;
+    padding: 10px 14px; border-radius: 8px; font-size: 13px;
+    margin-bottom: 16px; display: none;
+  }
+  .auth-success.show { display: block; }
+  .auth-footer { margin-top: 32px; font-size: 12px; color: #9ca3af; text-align: center; }
+  @media (max-width: 700px) {
+    .auth-left { display: none; }
+    .auth-right { width: 100%; padding: 40px 28px; }
+    .auth-wrap { border-radius: 0; min-height: 100vh; }
+  }
+
 </style>
   `;
 }
@@ -10833,45 +10958,95 @@ function showLoginScreen() {
   if (!overlay) {
     overlay = document.createElement('div');
     overlay.id = 'auth-overlay';
-    overlay.className = 'auth-overlay';
     document.body.appendChild(overlay);
   }
+  overlay.className = 'auth-overlay';
+  overlay.style.display = 'flex';
   overlay.innerHTML = `
-    <div class="auth-card">
-      <div class="auth-logo">
-        <div class="auth-logo-mark">H</div>
-        <div>
-          <div class="auth-logo-text">HansHub</div>
-          <div class="auth-logo-sub">Project Management by Hans Infomatic</div>
+    <div class="auth-wrap">
+
+      <!-- LEFT PANEL -->
+      <div class="auth-left">
+        <div class="auth-brand">
+          <div class="auth-brand-logo">H</div>
+          <div class="auth-brand-name">HansHub</div>
+          <div class="auth-brand-sub">Hans Infomatic Private Limited</div>
+        </div>
+        <div class="auth-tagline">
+          <div class="auth-tagline-text">One platform for every project, deal and team.</div>
+          <div class="auth-tagline-desc">Manage ground handling deployments, cargo systems, health-tech projects and GTM pipelines — all in one place.</div>
+        </div>
+        <div class="auth-features">
+          <div class="auth-feature"><div class="auth-feature-dot"></div>Projects, tasks and milestones</div>
+          <div class="auth-feature"><div class="auth-feature-dot"></div>Partner agreements and action logs</div>
+          <div class="auth-feature"><div class="auth-feature-dot"></div>GTM pipelines and event tracking</div>
+          <div class="auth-feature"><div class="auth-feature-dot"></div>Real-time collaboration across teams</div>
         </div>
       </div>
-      <div class="auth-title">Welcome back</div>
-      <div class="auth-subtitle">Sign in to your workspace</div>
-      <div class="auth-error" id="auth-error"></div>
-      <div class="auth-success" id="auth-success"></div>
-      <div class="auth-field">
-        <label class="auth-label">Email address</label>
-        <input class="auth-input" id="auth-email" type="email" placeholder="you@hansinfomatic.com"
-          autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
+
+      <!-- RIGHT PANEL -->
+      <div class="auth-right">
+        <div class="auth-form-title">Welcome back</div>
+        <div class="auth-form-sub">Sign in to your HansHub workspace</div>
+
+        <div class="auth-error" id="auth-error"></div>
+        <div class="auth-success" id="auth-success"></div>
+
+        <div id="auth-password-form">
+          <div class="auth-field">
+            <label>Email address</label>
+            <input type="email" id="auth-email" placeholder="you@hansinfomatic.com"
+              autocomplete="email"
+              onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
+          </div>
+          <div class="auth-field">
+            <label>Password</label>
+            <input type="password" id="auth-pass" placeholder="••••••••••••"
+              autocomplete="current-password"
+              onkeydown="if(event.key==='Enter')doLogin()">
+          </div>
+          <label class="auth-remember">
+            <input type="checkbox" id="auth-remember" checked>
+            Keep me signed in
+          </label>
+          <button class="auth-submit" id="login-btn" onclick="doLogin()">
+            <span class="material-icons-round" style="font-size:18px">login</span>
+            Sign in
+          </button>
+          <div class="auth-divider">or</div>
+          <button class="auth-magic" onclick="showMagicForm()">
+            <span class="material-icons-round" style="font-size:16px">auto_awesome</span>
+            Sign in with magic link
+          </button>
+        </div>
+
+        <div id="auth-magic-form" style="display:none">
+          <div class="auth-field">
+            <label>Email address</label>
+            <input type="email" id="magic-email" placeholder="you@hansinfomatic.com"
+              onkeydown="if(event.key==='Enter')doMagicLink()">
+          </div>
+          <button class="auth-submit" id="magic-btn" onclick="doMagicLink()">
+            <span class="material-icons-round" style="font-size:18px">send</span>
+            Send magic link
+          </button>
+          <div class="auth-divider">or</div>
+          <button class="auth-magic" onclick="
+            document.getElementById('auth-magic-form').style.display='none';
+            document.getElementById('auth-password-form').style.display='block';">
+            <span class="material-icons-round" style="font-size:16px">lock</span>
+            Back to password login
+          </button>
+        </div>
+
+        <div class="auth-footer">
+          Hans Infomatic Pvt. Ltd. &nbsp;·&nbsp; Internal use only<br>
+          <span style="color:#d1d5db">v2.0</span>
+        </div>
       </div>
-      <div class="auth-field">
-        <label class="auth-label">Password</label>
-        <input class="auth-input" id="auth-pass" type="password" placeholder="••••••••••••"
-          autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <label class="auth-remember">
-        <input type="checkbox" id="auth-remember" checked>
-        Keep me signed in for 30 days
-      </label>
-      <button class="auth-btn" id="login-btn" onclick="doLogin()">Sign in</button>
-      <div class="auth-divider">or</div>
-      <button class="auth-magic-btn" onclick="showMagicForm()">
-        <span class="material-icons-round" style="font-size:16px">email</span>
-        Sign in with magic link
-      </button>
-      <div class="auth-footer">Hans Infomatic Private Limited · Internal Use Only</div>
-    </div>`;
-  overlay.style.display = 'flex';
+
+    </div>
+  `;
   setTimeout(() => document.getElementById('auth-email')?.focus(), 100);
 }
 
@@ -10900,16 +11075,12 @@ async function doLogin() {
 }
 
 function showMagicForm() {
+  document.getElementById('auth-password-form').style.display = 'none';
+  document.getElementById('auth-magic-form').style.display = 'block';
   const email = document.getElementById('auth-email')?.value || '';
-  document.querySelector('.auth-magic-btn').outerHTML = `
-    <div class="auth-field">
-      <label class="auth-label">Email address</label>
-      <input class="auth-input" id="magic-email" type="email" value="${email}"
-        placeholder="you@hansinfomatic.com" onkeydown="if(event.key==='Enter')doMagicLink()">
-    </div>
-    <button class="auth-btn" id="magic-btn" onclick="doMagicLink()">Send magic link</button>
-    <button class="auth-magic-btn" style="margin-top:10px" onclick="showLoginScreen()">Back to password login</button>`;
-  document.getElementById('magic-email')?.focus();
+  const magicEmail = document.getElementById('magic-email');
+  if (magicEmail && email) magicEmail.value = email;
+  magicEmail?.focus();
 }
 
 async function doMagicLink() {
