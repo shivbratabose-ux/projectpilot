@@ -1,36 +1,24 @@
-# HansHub — Project Management Platform
+# HansHub — Project Management by Hans Infomatic
 
-Hans Infomatic Pvt. Ltd. · Internal Operations Dashboard
+**Hans Infomatic Private Limited** · Internal Operations Dashboard
 
 ## Live App
-**https://shivbratabose-ux.github.io/projectpilot-app**
+**https://shivbratabose-ux.github.io/projectpilot**
 
 ## About
-HansHub is a single-file, self-contained project management web app covering:
-- Portfolio, GTM, Marketing, JV, Product, Events, Partners
-- Sprint Board with drag-and-drop
+HansHub is Hans Infomatic's internal project management platform covering:
+- Portfolio, Projects, Tasks, Sprint Board
+- GTM Pipeline, Marketing, Joint Ventures
 - Software Issue Tracker with escalation
-- User Management with role-based permissions
+- Events Calendar, Agreement Tracker, Action Log
+- User Management with 7-level role hierarchy
 - Settings with Business Rules engine
 
-## Tech Stack
-- Vanilla HTML / CSS / JavaScript (no framework, no build step)
-- Google Fonts — Inter + JetBrains Mono
-- Material Icons Round
-- 100% client-side — no backend required
+## Stack
+- Frontend: Vanilla HTML/CSS/JS — GitHub Pages
+- Backend: Supabase (PostgreSQL + Auth + Realtime)
+- Auth: Email/Password + Magic Link
 
-## Deploy
-This repo is served via **GitHub Pages** from the `main` branch root.
-
-Any push to `main` auto-deploys within ~60 seconds.
-
-## Local Development
-```bash
-# Just open the file — no install needed
-open index.html
-```
-Or serve locally:
-```bash
-npx serve .
-# → http://localhost:3000
-```
+## Access
+Internal use only — Hans Infomatic Pvt. Ltd.
+Contact Shivbrata Bose for access requests.
