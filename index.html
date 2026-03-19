@@ -1867,7 +1867,7 @@ function renderProjectDetail(projectId) {
         </div>
         <div class="page-actions">
           <button class="btn btn-secondary" onclick="navigate('kanban',${p.id})"><span class="material-icons-round">view_kanban</span>Kanban</button>
-          <button class="btn btn-primary" onclick="openNewTaskModal(${p.id})"><span class="material-icons-round">add</span>Add Task</button>
+          <button class="btn btn-primary" onclick="openNewTaskModal('${p.id}')"><span class="material-icons-round">add</span>Add Task</button>
         </div>
       </div>
       <div class="tabs">
@@ -1901,7 +1901,7 @@ function renderProjectTasks(p, projectTasks) {
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-size:13px;color:var(--text2)">${projectTasks.length} tasks · ${projectTasks.filter(t=>t.status==='done').length} done</div>
-      <button class="btn btn-primary btn-sm" onclick="openNewTaskModal(${p.id})"><span class="material-icons-round">add</span>Add Task</button>
+      <button class="btn btn-primary btn-sm" onclick="openNewTaskModal('${p.id}')"><span class="material-icons-round">add</span>Add Task</button>
     </div>
     <div class="card" style="padding:0">
       <div class="table-wrap">
@@ -1920,7 +1920,7 @@ function renderProjectTasks(p, projectTasks) {
             `).join('')}
           </tbody>
         </table>
-        ${projectTasks.length===0?`<div class="empty-state"><span class="material-icons-round">task</span><p>No tasks yet.</p><button class="btn btn-primary" onclick="openNewTaskModal(${p.id})">Add first task</button></div>`:""}
+        ${projectTasks.length===0?`<div class="empty-state"><span class="material-icons-round">task</span><p>No tasks yet.</p><button class="btn btn-primary" onclick="openNewTaskModal('${p.id}')">Add first task</button></div>`:""}
       </div>
     </div>
   `;
@@ -3658,16 +3658,16 @@ function renderNewProject() {
 
 // ==================== MODALS ====================
 function openModal(title, content, size) {
-  const box = document.getElementById('modal-box');
+  const overlay = document.getElementById('modal-overlay');
+  const box     = document.getElementById('modal-box');
+  const mc      = document.getElementById('modal-content');
+  if (!overlay || !box || !mc) {
+    console.error('Modal elements missing');
+    return;
+  }
   box.className = 'modal' + (size==='lg'?' modal-lg':'');
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-header">
-      <div class="modal-title">${title}</div>
-      <button class="icon-btn" onclick="closeModal()"><span class="material-icons-round">close</span></button>
-    </div>
-    <div>${content}</div>
-  `;
-  document.getElementById('modal-overlay').style.display = 'flex';
+  mc.innerHTML = '<div class="modal-header"><div class="modal-title">' + title + '</div><button class="icon-btn" onclick="closeModal()"><span class="material-icons-round">close</span></button></div><div>' + content + '</div>';
+  overlay.style.cssText = 'display:flex !important';
 }
 function closeModal(e) {
   if (!e || e.target === document.getElementById('modal-overlay')) {
@@ -3682,7 +3682,7 @@ function openNewTaskModal(projectId) {
       <div class="form-group"><div class="form-label">Task Title *</div><input class="form-control" id="nt-title" placeholder="Describe the task..."></div>
       <div class="form-group"><div class="form-label">Project</div>
         <select class="form-control" id="nt-project">
-          ${DATA.projects.map(p=>`<option value="${p.id}" ${p.id===projectId?'selected':''}>${p.name}</option>`).join('')}
+          ${DATA.projects.map(p=>`<option value="${p.id}" ${String(p.id)===String(projectId)?'selected':''}>${p.name}</option>`).join('')}
         </select>
       </div>
       <div class="form-row">
@@ -10341,6 +10341,12 @@ window._profile     = null;
 window._allProfiles = [];
 
 // ── BOOT ─────────────────────────────────────────────────────────
+
+// Clear stale session helper
+function clearSupaSession() {
+  localStorage.removeItem('supa_session');
+  supa._token = null; supa._refreshToken = null; supa._user = null;
+}
 async function bootAuth() {
   initSidebarState();
   document.getElementById('app').style.display = 'none';
@@ -10349,15 +10355,21 @@ async function bootAuth() {
     // Check existing session first
     const { data: { session } } = await supa.auth.getSession();
     if (session?.user) {
-      await onUserSignedIn(session.user);
+      try {
+        await onUserSignedIn(session.user);
+      } catch(e) {
+        console.error('onUserSignedIn failed:', e.message);
+        showLoginScreen();
+      }
     } else {
       showLoginScreen();
     }
 
     // Listen for future auth changes
     supa.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await onUserSignedIn(session.user);
+      if (event === 'SIGNED_IN' && session) {
+        const user = session.user || session;
+        await onUserSignedIn(user);
       } else if (event === 'SIGNED_OUT') {
         window._authUser = null;
         window._profile  = null;
@@ -10375,38 +10387,23 @@ async function bootAuth() {
 async function onUserSignedIn(authUser) {
   window._authUser = authUser;
 
-  // Load or create profile
+  // ── STEP 1: Load profile (with fallback) ──────────────────────
   try {
-    const { data: profile, error } = await supa
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
-
+    const { data: profile } = await supa.from('profiles').select('*').eq('id', authUser.id).single();
     if (profile) {
       window._profile = profile;
     } else {
-      // Create profile if missing
       const newProfile = {
-        id:         authUser.id,
-        email:      authUser.email,
-        full_name:  authUser.user_metadata?.full_name || authUser.email.split('@')[0],
-        role:       'viewer',
-        level:      6,
-        login_type: 'password',
-        avatar_color: '#1B6B5A'
+        id: authUser.id, email: authUser.email,
+        full_name: authUser.user_metadata?.full_name || authUser.email.split('@')[0],
+        role: 'viewer', level: 6, login_type: 'password', avatar_color: '#1B6B5A'
       };
-      const { data: created } = await supa.from('profiles').insert(newProfile).select().single();
-      window._profile = created || newProfile;
+      await supa.from('profiles').insert(newProfile);
+      window._profile = newProfile;
     }
-
-    // Update last seen
-    await supa.from('profiles')
-      .update({ last_seen: new Date().toISOString() })
-      .eq('id', authUser.id);
-
-  } catch(err) {
-    console.error('Profile load error:', err);
+    await supa.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', authUser.id);
+  } catch(e) {
+    console.warn('Profile load:', e.message);
     window._profile = {
       id: authUser.id, email: authUser.email,
       full_name: authUser.email.split('@')[0],
@@ -10414,24 +10411,20 @@ async function onUserSignedIn(authUser) {
     };
   }
 
-  // Load all users for dropdowns
-  await loadAllUsers();
+  // ── STEP 2: Load data (each with its own try/catch) ────────────
+  try { await loadAllUsers(); }       catch(e) { console.warn('loadAllUsers:', e.message); }
+  try { await loadProjectsFromDB(); } catch(e) { console.warn('loadProjects:', e.message); }
+  try { await loadTasksFromDB(); }    catch(e) { console.warn('loadTasks:', e.message); }
+  try { await loadModuleDataFromDB(); } catch(e) { console.warn('loadModules:', e.message); }
+  try { await seedSupabaseIfEmpty(); } catch(e) { console.warn('seed:', e.message); }
 
-  // Load data from Supabase
-  await loadProjectsFromDB();
-  await loadTasksFromDB();
-  await loadModuleDataFromDB();
+  // ── STEP 3: Setup realtime ─────────────────────────────────────
+  try { setupRealtimeSubs(); } catch(e) { console.warn('realtime:', e.message); }
 
-  // Seed Supabase if this is first time
-  await seedSupabaseIfEmpty();
+  // ── STEP 4: Update UI with real user ──────────────────────────
+  try { patchCurrentUser(); } catch(e) { console.warn('patchUser:', e.message); }
 
-  // Setup realtime
-  setupRealtimeSubs();
-
-  // Patch current user into legacy DATA
-  patchCurrentUser();
-
-  // Show app
+  // ── STEP 5: ALWAYS show the app ───────────────────────────────
   hideLoginScreen();
   navigate('dashboard');
 }
@@ -10993,6 +10986,117 @@ function isAdmin()   { return window._profile?.level <= 2; }
 function isBizLead() { return window._profile?.level <= 3; }
 
 // ── BOOT ──────────────────────────────────────────────────────────
+
+// ── FUNCTION ALIASES (backward compat) ───────────────────────────
+function loginPassword() { doLogin(); }
+function logout() { doSignOut(); }
+function saveEventLeads(id) {
+  const e = (window.EVENTS_DATA||[]).find(x=>x.id==id);
+  if (!e) return;
+  const val = parseInt(document.getElementById('ev-leads-'+id)?.value)||0;
+  e.leads = val;
+  showToast('Leads updated','success');
+  navigate('events');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SUPABASE SAVE HOOKS — persist all module saves to DB
+// ═══════════════════════════════════════════════════════════════
+
+// Universal save helper
+async function supaSave(table, data) {
+  if (!window._authUser) return null;
+  const { data: result, error } = await supa.from(table).insert({
+    ...data, created_by: window._authUser.id
+  });
+  if (error) console.warn('supaSave ' + table + ':', error.message);
+  return result;
+}
+
+async function supaUpdateRow(table, id, data) {
+  if (!window._authUser) return false;
+  const { error } = await supa.from(table).update({
+    ...data, updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) console.warn('supaUpdate ' + table + ':', error.message);
+  return !error;
+}
+
+// Patch save functions to also write to Supabase
+(function patchSaves() {
+  // saveNewIssue
+  const _origIssue = window.saveNewIssue;
+  if (typeof saveNewIssue === 'function') {
+    const orig = saveNewIssue;
+    window.saveNewIssue = function() {
+      orig();
+      const issue = DATA.softwareIssues?.[0];
+      if (!issue || !window._authUser) return;
+      supaSave('issues', {
+        title: issue.title, description: issue.description||'',
+        severity: issue.severity||'medium', status: issue.status||'open',
+        issue_type: issue.type||'bug', module: issue.module||'',
+        environment: issue.environment||'production',
+        assignee_id: typeof issue.assignee === 'object' ? issue.assignee?.id : issue.assignee,
+        reporter_id: window._authUser.id,
+        steps_to_repro: issue.steps||'', expected_result: issue.expected||'',
+        actual_result: issue.actual||''
+      });
+    };
+  }
+
+  // saveNewEvent
+  if (typeof saveNewEvent === 'function') {
+    const orig = saveNewEvent;
+    window.saveNewEvent = function() {
+      orig();
+      const ev = window.EVENTS_DATA?.[window.EVENTS_DATA.length-1];
+      if (!ev || !window._authUser) return;
+      supaSave('events', {
+        name: ev.name, event_type: ev.type||'Conference',
+        status: ev.status||'planning', location: ev.location||'',
+        start_date: ev.date, end_date: ev.end||ev.date,
+        budget: ev.budget||0, objectives: ev.objectives||[]
+      });
+    };
+  }
+
+  // saveNewAgreement
+  if (typeof saveNewAgreement === 'function') {
+    const orig = saveNewAgreement;
+    window.saveNewAgreement = function() {
+      orig();
+      const agr = window.MD?.agreements?.[window.MD.agreements.length-1];
+      if (!agr || !window._authUser) return;
+      supaSave('agreements', {
+        title: agr.title, agreement_type: agr.type||'NDA',
+        party: agr.party, status: agr.status||'draft',
+        signed_date: agr.signed&&agr.signed!=='—'?agr.signed:null,
+        expiry_date: agr.expires&&agr.expires!=='—'?agr.expires:null,
+        value_notes: agr.value||'', notes: agr.notes||'',
+        owner_id: window._authUser.id
+      });
+    };
+  }
+
+  // saveNewAction
+  if (typeof saveNewAction === 'function') {
+    const orig = saveNewAction;
+    window.saveNewAction = function() {
+      orig();
+      const act = window.MD?.actionLog?.[0];
+      if (!act || !window._authUser) return;
+      supaSave('action_log', {
+        action: act.action, project_ref: act.project||'',
+        status: act.status||'open', priority: act.priority||'medium',
+        owner_id: act.owner||window._authUser.id,
+        due_date: act.due||null, notes: act.notes||''
+      });
+    };
+  }
+})();
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootAuth);
 } else {
