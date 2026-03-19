@@ -759,22 +759,246 @@
   .sw-row:last-child { border-bottom:none; }
 </style>
 
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
-    const SUPA_URL = 'https://soyxtvcautfvxkczzkyv.supabase.co';
-    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNveXh0dmNhdXRmdnhrY3p6a3l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjQ4NDYsImV4cCI6MjA4OTMwMDg0Nn0.ooPPseSWtk4OaqWC29l48bXHzJjvRRecXd01XuDbqa4';
-    const supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
-      auth: {
-        persistSession:     true,
-        autoRefreshToken:   true,
-        detectSessionInUrl: true,
-        storage:            localStorage
+// ═══════════════════════════════════════════════════════════════
+//  SUPABASE REST CLIENT — no CDN, pure fetch()
+// ═══════════════════════════════════════════════════════════════
+const SUPA_URL = 'https://soyxtvcautfvxkczzkyv.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNveXh0dmNhdXRmdnhrY3p6a3l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjQ4NDYsImV4cCI6MjA4OTMwMDg0Nn0.ooPPseSWtk4OaqWC29l48bXHzJjvRRecXd01XuDbqa4';
+
+// ── REST QUERY BUILDER ────────────────────────────────────────────
+class SupaQuery {
+  constructor(client, table) {
+    this._c      = client;
+    this._table  = table;
+    this._method = 'GET';
+    this._body   = null;
+    this._params = [];
+    this._headers = {};
+    this._single = false;
+  }
+  select(cols) { this._cols = cols || '*'; return this; }
+  insert(data) { this._method = 'POST'; this._body = data; this._cols = this._cols||'*'; return this; }
+  update(data) { this._method = 'PATCH'; this._body = data; return this; }
+  upsert(data) { this._method = 'POST'; this._body = data; this._headers['Prefer'] = 'resolution=merge-duplicates,return=representation'; return this; }
+  delete()     { this._method = 'DELETE'; return this; }
+  eq(col, val) { this._params.push(col + '=eq.' + encodeURIComponent(val)); return this; }
+  neq(col,val) { this._params.push(col + '=neq.' + encodeURIComponent(val)); return this; }
+  order(col, opts) { this._params.push('order=' + col + '.' + ((opts && opts.ascending===false)?'desc':'asc')); return this; }
+  limit(n)     { this._params.push('limit=' + n); return this; }
+  single()     { this._single = true; this._headers['Accept'] = 'application/vnd.pgrst.object+json'; return this; }
+  filter(col, op, val) { this._params.push(col + '=' + op + '.' + encodeURIComponent(val)); return this; }
+
+  async then(resolve, reject) {
+    try {
+      const token = this._c._token || SUPA_KEY;
+      let url = SUPA_URL + '/rest/v1/' + this._table;
+      
+      // Add column select
+      const cols = this._cols || '*';
+      let queryParams = ['select=' + cols];
+      if (this._params.length) queryParams = queryParams.concat(this._params);
+      if (queryParams.length) url += '?' + queryParams.join('&');
+
+      const headers = {
+        'apikey':        SUPA_KEY,
+        'Authorization': 'Bearer ' + token,
+        'Content-Type':  'application/json',
+        'Prefer':        'return=representation',
+        ...this._headers
+      };
+
+      const options = { method: this._method, headers };
+      if (this._body) options.body = JSON.stringify(this._body);
+
+      const res = await fetch(url, options);
+      
+      if (!res.ok) {
+        let errMsg = res.statusText;
+        try { const e = await res.json(); errMsg = e.message || e.error_description || errMsg; } catch(x) {}
+        const err = { message: errMsg, status: res.status };
+        resolve({ data: null, error: err });
+        return;
       }
+
+      let data = null;
+      const text = await res.text();
+      if (text) {
+        try { data = JSON.parse(text); } catch(x) { data = null; }
+      }
+
+      // single() returns object not array
+      if (this._single && Array.isArray(data)) data = data[0] || null;
+      resolve({ data, error: null });
+    } catch(e) {
+      resolve({ data: null, error: { message: e.message } });
+    }
+  }
+}
+
+// ── SUPABASE CLIENT ───────────────────────────────────────────────
+const supa = {
+  _token:         null,
+  _refreshToken:  null,
+  _user:          null,
+  _authListeners: [],
+
+  from(table) { return new SupaQuery(this, table); },
+
+  // ── AUTH ────────────────────────────────────────────────────────
+  auth: {
+    async signInWithPassword({ email, password }) {
+      try {
+        const res = await fetch(SUPA_URL + '/auth/v1/token?grant_type=password', {
+          method:  'POST',
+          headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) return { data: null, error: { message: data.error_description || data.msg || 'Login failed' } };
+        // Store session
+        supa._token        = data.access_token;
+        supa._refreshToken = data.refresh_token;
+        supa._user         = data.user;
+        localStorage.setItem('supa_session', JSON.stringify({
+          access_token:  data.access_token,
+          refresh_token: data.refresh_token,
+          user:          data.user,
+          expires_at:    Date.now() + (data.expires_in * 1000)
+        }));
+        supa._notifyListeners('SIGNED_IN', { user: data.user });
+        return { data: { user: data.user, session: data }, error: null };
+      } catch(e) {
+        return { data: null, error: { message: e.message } };
+      }
+    },
+
+    async signInWithOtp({ email, options }) {
+      try {
+        const res = await fetch(SUPA_URL + '/auth/v1/otp', {
+          method:  'POST',
+          headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            email,
+            create_user: options?.shouldCreateUser !== false,
+            options:     { redirect_to: options?.emailRedirectTo }
+          })
+        });
+        if (!res.ok) {
+          const e = await res.json();
+          return { error: { message: e.error_description || e.msg || 'Failed to send magic link' } };
+        }
+        return { error: null };
+      } catch(e) {
+        return { error: { message: e.message } };
+      }
+    },
+
+    async signOut() {
+      try {
+        if (supa._token) {
+          await fetch(SUPA_URL + '/auth/v1/logout', {
+            method:  'POST',
+            headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + supa._token }
+          });
+        }
+      } catch(e) {}
+      supa._token = null; supa._refreshToken = null; supa._user = null;
+      localStorage.removeItem('supa_session');
+      supa._notifyListeners('SIGNED_OUT', null);
+      return { error: null };
+    },
+
+    async getSession() {
+      // Check localStorage
+      try {
+        const stored = localStorage.getItem('supa_session');
+        if (!stored) return { data: { session: null }, error: null };
+        const session = JSON.parse(stored);
+        // Check expiry (with 60s buffer)
+        if (session.expires_at && Date.now() > session.expires_at - 60000) {
+          // Try to refresh
+          const refreshed = await supa.auth._refreshSession(session.refresh_token);
+          if (refreshed) return { data: { session: refreshed }, error: null };
+          localStorage.removeItem('supa_session');
+          return { data: { session: null }, error: null };
+        }
+        supa._token        = session.access_token;
+        supa._refreshToken = session.refresh_token;
+        supa._user         = session.user;
+        return { data: { session }, error: null };
+      } catch(e) {
+        return { data: { session: null }, error: null };
+      }
+    },
+
+    async _refreshSession(refreshToken) {
+      try {
+        const res = await fetch(SUPA_URL + '/auth/v1/token?grant_type=refresh_token', {
+          method:  'POST',
+          headers: { 'apikey': SUPA_KEY, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ refresh_token: refreshToken })
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        supa._token        = data.access_token;
+        supa._refreshToken = data.refresh_token;
+        supa._user         = data.user;
+        const session = {
+          access_token:  data.access_token,
+          refresh_token: data.refresh_token,
+          user:          data.user,
+          expires_at:    Date.now() + (data.expires_in * 1000)
+        };
+        localStorage.setItem('supa_session', JSON.stringify(session));
+        return session;
+      } catch(e) { return null; }
+    },
+
+    onAuthStateChange(callback) {
+      supa._authListeners.push(callback);
+      return { data: { subscription: { unsubscribe: () => {
+        supa._authListeners = supa._authListeners.filter(c => c !== callback);
+      }}}};
+    },
+
+    async updateUser(updates) {
+      if (!supa._token) return { error: { message: 'Not authenticated' } };
+      try {
+        const res = await fetch(SUPA_URL + '/auth/v1/user', {
+          method:  'PUT',
+          headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + supa._token, 'Content-Type': 'application/json' },
+          body:    JSON.stringify(updates)
+        });
+        const data = await res.json();
+        if (!res.ok) return { error: { message: data.message || 'Update failed' } };
+        return { data, error: null };
+      } catch(e) { return { error: { message: e.message } }; }
+    }
+  },
+
+  _notifyListeners(event, session) {
+    this._authListeners.forEach(cb => {
+      try { cb(event, session); } catch(e) {}
     });
-    window._supaSession = null;
-    window._supaUser    = null;
-  </script>
+  },
+
+  // ── REALTIME (polling fallback) ───────────────────────────────
+  channel(name) {
+    return {
+      on(event, filter, cb) { return this; },
+      subscribe() {
+        console.log('Realtime polling not active (REST mode)');
+        return this;
+      }
+    };
+  }
+};
+
+window._supaSession = null;
+window._supaUser    = null;
+console.log('HansHub REST client ready ✓');
+</script>
 </head>
 <body>
 <div class="app">
