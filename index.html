@@ -1166,13 +1166,12 @@ function renderScreen(screen, ctx) {
     case 'system-config': return renderSystemConfig();
     case 'business-logic': return renderBusinessLogic();
     case 'audit-log': return renderAuditLog();
-    default: return '<div class="empty-state"><span class="material-icons-round">construction</span><p>Screen not found.</p></div>';
+    default: return renderDashboard();
   }
 }
 
-// ==================== DASHBOARD ====================
 function renderDashboard() {
-  const myTasks = DATA.tasks.filter(t => t.assignee === 1 && t.status !== 'done');
+  const myTasks = DATA.tasks.filter(t => isMe(t.assignee) && t.status !== 'done');
   const overdue = myTasks.filter(t => new Date(t.due) < new Date());
   const activeProjects = DATA.projects.filter(p => p.status === 'in-progress').length;
   const completedTasks = DATA.tasks.filter(t => t.status === 'done').length;
@@ -1306,13 +1305,15 @@ function renderDashboard() {
       </div>
     </div>
   `;
+
 }
+
 
 // ==================== MY TASKS ====================
 function renderMyTasks() {
   const statuses = ['all','pending','in-progress','planning','done'];
   const filter = taskFilter || 'all';
-  const myTasks = DATA.tasks.filter(t => t.assignee === 1);
+  const myTasks = DATA.tasks.filter(t => isMe(t.assignee));
   let filtered = filter === 'all' ? myTasks : myTasks.filter(t => t.status === filter);
   const sortPriority = {high:0,medium:1,low:2};
   if (taskSort==='due')      filtered = [...filtered].sort((a,b)=>new Date(a.due)-new Date(b.due));
@@ -3357,7 +3358,7 @@ function openEditProfileModal() {
 
 function renderProfile() {
   const u = DATA.currentUser;
-  const myTasks = DATA.tasks.filter(t=>t.assignee===1);
+  const myTasks = DATA.tasks.filter(t=>isMe(t.assignee));
   return `
     <div style="max-width:640px">
       <div class="page-header"><div class="page-title">My Profile</div></div>
@@ -3374,7 +3375,7 @@ function renderProfile() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;padding:12px 0;border-top:1px solid var(--border)">
           <div><div style="font-size:22px;font-weight:600">${myTasks.filter(t=>t.status!=='done').length}</div><div style="font-size:11.5px;color:var(--text3)">Open Tasks</div></div>
           <div><div style="font-size:22px;font-weight:600">${myTasks.filter(t=>t.status==='done').length}</div><div style="font-size:11.5px;color:var(--text3)">Completed</div></div>
-          <div><div style="font-size:22px;font-weight:600">${DATA.projects.filter(p=>p.owner===1).length}</div><div style="font-size:11.5px;color:var(--text3)">Projects Owned</div></div>
+          <div><div style="font-size:22px;font-weight:600">${DATA.projects.filter(p=>isMe(p.owner)).length}</div><div style="font-size:11.5px;color:var(--text3)">Projects Owned</div></div>
         </div>
       </div>
       <div class="card">
@@ -3461,7 +3462,7 @@ function openNewTaskModal(projectId) {
       <div class="form-row">
         <div class="form-group"><div class="form-label">Assignee</div>
           <select class="form-control" id="nt-assignee">
-            ${DATA.users.map(u=>`<option value="${u.id}" ${u.id===1?'selected':''}>${u.name}</option>`).join('')}
+            ${DATA.users.map(u=>`<option value="${u.id}" ${isMe(u.id)?'selected':''}>${u.name}</option>`).join('')}
           </select>
         </div>
         <div class="form-group"><div class="form-label">Priority</div>
@@ -3835,7 +3836,7 @@ function markNotifRead(id) {
 }
 
 function updateBadges() {
-  const myOpen = DATA.tasks.filter(t=>t.assignee===1&&t.status!=='done').length;
+  const myOpen = DATA.tasks.filter(t=>isMe(t.assignee)&&t.status!=='done').length;
   document.getElementById('mytask-badge').textContent = myOpen;
   const unread = DATA.notifications.filter(n=>!n.read).length;
   document.getElementById('notif-badge').textContent = unread;
@@ -9576,29 +9577,6 @@ async function loadAllData() {
   }
 }
 
-// ── REALTIME SUBSCRIPTIONS ──────────────────────────────────────────────────supa.channel('tasks-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, payload => {
-      handleRealtimeTask(payload);
-    })
-    .subscribe();
-
-  // Projects realtime
-  supa.channel('projects-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
-      handleRealtimeProject(payload);
-    })
-    .subscribe();
-
-  // Notifications realtime
-  supa.channel('notif-changes')
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'notifications',
-      filter: `user_id=eq.${_authUser?.id}`
-    }, payload => {
-      handleRealtimeNotification(payload.new);
-    })
-    .subscribe();
-}
 
 function handleRealtimeTask(payload) {
   if (payload.eventType === 'INSERT') {
@@ -10843,6 +10821,15 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootAuth);
 } else {
   bootAuth();
+}
+
+// ── CURRENT USER ID HELPER ────────────────────────────────────────
+function myId() {
+  return window._authUser?.id || window.currentUser?.id || 1;
+}
+function isMe(id) {
+  const me = myId();
+  return id === me || String(id) === String(me);
 }
 </script>
 
