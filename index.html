@@ -760,16 +760,16 @@
 </style>
 
   <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
     const SUPA_URL = 'https://soyxtvcautfvxkczzkyv.supabase.co';
-    const SUPA_KEY = 'sb_publishable_EBggeEyw4zIW4-2qIerh2w_ebifsycs';
+    const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNveXh0dmNhdXRmdnhrY3p6a3l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MjQ4NDYsImV4cCI6MjA4OTMwMDg0Nn0.ooPPseSWtk4OaqWC29l48bXHzJjvRRecXd01XuDbqa4';
     const supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
+        persistSession:     true,
+        autoRefreshToken:   true,
         detectSessionInUrl: true,
-        storage: localStorage
+        storage:            localStorage
       }
     });
     window._supaSession = null;
