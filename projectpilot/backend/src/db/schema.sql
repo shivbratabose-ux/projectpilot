@@ -302,3 +302,36 @@ CREATE INDEX IF NOT EXISTS idx_agreements_partner ON agreements(partner_id);
 CREATE INDEX IF NOT EXISTS idx_agreements_expiry ON agreements(expiry_date);
 CREATE INDEX IF NOT EXISTS idx_action_logs_project ON action_logs(project_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
+
+-- ─── UPDATED_AT AUTO-UPDATE FUNCTION & TRIGGERS ──────────────────────────────
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'users','projects','milestones','tasks','epics','partners',
+    'agreements','gtm_projects','campaigns','content_items','joint_ventures','issues'
+  ]
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_trigger
+      WHERE tgname = 'trg_' || t || '_updated_at'
+    ) THEN
+      EXECUTE format(
+        'CREATE TRIGGER trg_%I_updated_at
+         BEFORE UPDATE ON %I
+         FOR EACH ROW EXECUTE FUNCTION set_updated_at()',
+        t, t
+      );
+    END IF;
+  END LOOP;
+END;
+$$;
