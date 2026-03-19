@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11099,7 +11098,10 @@ async function doLogin() {
   const remember = document.getElementById('auth-remember')?.checked;
   localStorage.setItem('hanshub_remember', remember ? 'true' : 'false');
 
-  // onUserSignedIn fires via onAuthStateChange
+  // Directly call onUserSignedIn - don't rely on listener
+  if (data?.user) {
+    await onUserSignedIn(data.user);
+  }
 }
 
 function showMagicForm() {
@@ -11152,13 +11154,13 @@ function createProject() {
       created_by: window._authUser.id
     }).select().single().then(({ data, error }) => {
       if (btn) { btn.disabled = false; btn.textContent = 'Create Project'; }
-      if (error) { showToast('Save error: ' + error.message,'error'); return; }
+      if (error) { console.error('createProject error:', error); showToast('Save error: ' + error.message,'error'); return; }
       DATA.projects.unshift({ id:data.id, name:data.name, description:data.description||'',
         status:data.status, priority:data.priority, progress:0,
         startDate:data.start_date||'', due:data.due_date||'',
         budget:data.budget||0, spent:0, owner:data.owner_id,
         team:data.team||[], tasks:0, completed:0, tags:[] });
-      showToast('Project "'+data.name+'" created','success');
+      console.log('Project saved to Supabase:', data); showToast('Project "'+data.name+'" created','success');
       navigate('project-detail', data.id);
     });
   } else {
@@ -11197,7 +11199,7 @@ function saveNewTask() {
       created_by:  window._authUser.id
     }).select().single().then(({ data, error }) => {
       if (btn) { btn.disabled = false; btn.textContent = 'Create Task'; }
-      if (error) { showToast('Save error: ' + error.message,'error'); return; }
+      if (error) { console.error('saveNewTask error:', error); showToast('Save error: ' + error.message,'error'); return; }
       DATA.tasks.unshift({ id:data.id, title:data.title, status:data.status,
         priority:data.priority, project:data.project_id, assignee:data.assignee_id,
         due:data.due_date||'', tags:data.tags||[], comments:[] });
@@ -11211,7 +11213,7 @@ function saveNewTask() {
         });
       }
       closeModal();
-      showToast('"'+data.title+'" created','success');
+      console.log('Task saved to Supabase:', data); showToast('"'+data.title+'" created','success');
       navigate('my-tasks');
     });
   } else {
