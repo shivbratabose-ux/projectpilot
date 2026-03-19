@@ -9430,10 +9430,6 @@ document.addEventListener('keydown', e => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── AUTH STATE ──────────────────────────────────────────────────────────────
-async 
-
-async 
-
 function updateSidebarUser(u) {
   const nameEl = document.getElementById('sidebar-user-name');
   const roleEl = document.getElementById('sidebar-user-role');
@@ -9444,10 +9440,6 @@ function updateSidebarUser(u) {
 }
 
 // ── LOGIN ACTIONS ───────────────────────────────────────────────────────────
-function hideLoginScreen() {
-  const el = document.getElementById('login-screen');
-  if (el) { el.classList.add('hidden'); setTimeout(()=>el.style.display='none', 300); }
-}
 
 function switchLoginTab(tab) {
   const isPassword = tab === 'password';
@@ -9473,31 +9465,6 @@ function showLoginSuccess(msg) {
   if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
-async 
-
-async function sendMagicLink() {
-  const email = document.getElementById('magic-email')?.value.trim();
-  clearLoginMessages();
-  if (!email) { showLoginError('Please enter your email address.'); return; }
-  const btn = document.getElementById('btn-magic');
-  if (btn) { btn.disabled=true; btn.innerHTML='<span class="material-icons-round">hourglass_empty</span>Sending...'; }
-
-  const { error } = await supa.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false } // only existing users
-  });
-
-  if (error) {
-    showLoginError('Could not send magic link. Please check your email or contact your administrator.');
-    if (btn) { btn.disabled=false; btn.innerHTML='<span class="material-icons-round">auto_awesome</span>Send magic link'; }
-  } else {
-    document.getElementById('magic-input-section').style.display = 'none';
-    document.getElementById('magic-sent-section').style.display  = '';
-    const emailLabel = document.getElementById('magic-sent-email');
-    if (emailLabel) emailLabel.textContent = email;
-  }
-}
-
 function resetMagicForm() {
   document.getElementById('magic-input-section').style.display = '';
   document.getElementById('magic-sent-section').style.display  = 'none';
@@ -9505,8 +9472,6 @@ function resetMagicForm() {
   const btn = document.getElementById('btn-magic');
   if (btn) { btn.disabled=false; btn.innerHTML='<span class="material-icons-round">auto_awesome</span>Send magic link'; }
 }
-
-async 
 
 // ── DATA LAYER — load all data from Supabase ────────────────────────────────
 async function loadAllData() {
@@ -9682,18 +9647,6 @@ async function updateTaskStatusInSupabase(taskId, newStatus) {
   if (!error) await logActivity('Updated task status', 'Tasks', newStatus, taskId);
 }
 
-async function logActivity(action, module, detail, recordId) {
-  if (!_authUser) return;
-  await supa.from('activity_feed').insert({
-    user_id:   _authUser.id,
-    action,
-    module,
-    detail,
-    record_id: recordId || null,
-    icon:      module === 'Tasks' ? 'task_alt' : module === 'Projects' ? 'folder' : 'circle',
-    color:     '#1B6B5A'
-  });
-}
 
 // ── TOPBAR USER DISPLAY ──────────────────────────────────────────
 function updateTopbarUser() {
@@ -9805,87 +9758,7 @@ async function signOut() {
 }
 
 // ── LOGIN SCREEN ─────────────────────────────────────────────────
-function showLoginScreen() {
-  document.getElementById('app').style.display = 'none';
 
-  let overlay = document.getElementById('auth-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'auth-overlay';
-    overlay.className = 'auth-overlay';
-    document.body.appendChild(overlay);
-  }
-
-  overlay.innerHTML = `
-    <div class="auth-card">
-      <!-- Logo -->
-      <div class="auth-logo">
-        <div class="auth-logo-mark">H</div>
-        <div>
-          <div class="auth-logo-text">HansHub</div>
-          <div class="auth-logo-sub">Project Management by Hans Infomatic</div>
-        </div>
-      </div>
-
-      <!-- Title -->
-      <div class="auth-title">Welcome back</div>
-      <div class="auth-subtitle">Sign in to your workspace</div>
-
-      <!-- Error / Success messages -->
-      <div class="auth-error" id="auth-error"></div>
-      <div class="auth-success" id="auth-success"></div>
-
-      <!-- Email + Password form -->
-      <div id="auth-form-password">
-        <div class="auth-field">
-          <label class="auth-label">Email address</label>
-          <input class="auth-input" id="auth-email" type="email"
-            placeholder="you@hansinfomatic.com" autocomplete="email"
-            onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
-        </div>
-        <div class="auth-field">
-          <label class="auth-label">Password</label>
-          <input class="auth-input" id="auth-password" type="password"
-            placeholder="••••••••••••" autocomplete="current-password"
-            onkeydown="if(event.key==='Enter')loginWithPassword()">
-        </div>
-        <label class="auth-remember">
-          <input type="checkbox" id="auth-remember" checked>
-          Keep me signed in for 30 days
-        </label>
-        <button class="auth-btn" id="auth-submit-btn" onclick="loginWithPassword()">
-          Sign in
-        </button>
-      </div>
-
-      <!-- Divider -->
-      <div class="auth-divider">or</div>
-
-      <!-- Magic link -->
-      <div id="auth-form-magic">
-        <button class="auth-magic-btn" onclick="showMagicLinkForm()">
-          <span class="material-icons-round" style="font-size:16px">email</span>
-          Sign in with magic link
-        </button>
-      </div>
-
-      <!-- Footer -->
-      <div class="auth-footer">
-        Hans Infomatic Private Limited · Internal Use Only
-      </div>
-    </div>`;
-
-  overlay.style.display = 'flex';
-
-  // Auto-focus email
-  setTimeout(() => document.getElementById('auth-email')?.focus(), 100);
-}
-
-function hideLoginScreen() {
-  const overlay = document.getElementById('auth-overlay');
-  if (overlay) overlay.style.display = 'none';
-  document.getElementById('app').style.display = '';
-}
 
 // ── PASSWORD LOGIN ────────────────────────────────────────────────
 async function loginWithPassword() {
@@ -10013,8 +9886,6 @@ async function inviteUser(email, fullName, role, level) {
 }
 
 // ── STATUS HELPERS for current user ─────────────────────────────
-function isAdmin() { return _profile && _profile.level <= 2; }
-function isBizLead() { return _profile && _profile.level <= 3; }
 function getCurrentUserProfile() { return _profile; }
 
 // ── BOOT ON DOM READY ────────────────────────────────────────────
@@ -10325,6 +10196,9 @@ async function onUserSignedIn(authUser) {
   await loadTasksFromDB();
   await loadModuleDataFromDB();
 
+  // Seed Supabase if this is first time
+  await seedSupabaseIfEmpty();
+
   // Setup realtime
   setupRealtimeSubs();
 
@@ -10409,6 +10283,59 @@ async function loadTasksFromDB() {
       });
     }
   } catch(e) { console.warn('loadTasksFromDB:', e.message); }
+}
+
+async function seedSupabaseIfEmpty() {
+  // If Supabase has no projects, push local seed data up so everyone shares it
+  if (!window._authUser) return;
+  try {
+    const { data: existingProjects } = await supa.from('projects').select('id').limit(1);
+    if (existingProjects?.length) return; // Already has data
+    
+    // Seed projects
+    for (const p of DATA.projects.slice(0, 6)) {
+      await supa.from('projects').insert({
+        name:        p.name,
+        description: p.description || '',
+        status:      p.status || 'planning',
+        priority:    p.priority || 'medium',
+        progress:    p.progress || 0,
+        start_date:  p.startDate || null,
+        due_date:    p.due || null,
+        budget:      p.budget || 0,
+        owner_id:    window._authUser.id,
+        team:        [window._authUser.id],
+        created_by:  window._authUser.id
+      }).select().single().then(({data}) => {
+        // Map old numeric ID to new UUID
+        if (data) p.id = data.id;
+      });
+    }
+    
+    // Seed tasks
+    for (const t of DATA.tasks.slice(0, 12)) {
+      const proj = DATA.projects.find(p => p.id == t.project);
+      await supa.from('tasks').insert({
+        title:       t.title,
+        description: t.description || '',
+        status:      t.status || 'todo',
+        priority:    t.priority || 'medium',
+        project_id:  proj?.id || null,
+        assignee_id: window._authUser.id,
+        reporter_id: window._authUser.id,
+        due_date:    t.due || null,
+        tags:        t.tags || [],
+        created_by:  window._authUser.id
+      });
+    }
+    
+    console.log('Seeded Supabase with initial data ✓');
+    // Reload from DB now
+    await loadProjectsFromDB();
+    await loadTasksFromDB();
+  } catch(e) {
+    console.warn('seedSupabaseIfEmpty:', e.message);
+  }
 }
 
 async function loadModuleDataFromDB() {
@@ -10508,6 +10435,29 @@ function setupRealtimeSubs() {
 function patchCurrentUser() {
   if (!window._profile) return;
   const p = window._profile;
+  // Update the legacy currentUser object with real UUID
+  DATA.currentUser = {
+    id:       p.id,
+    name:     p.full_name,
+    initials: (p.full_name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+    role:     (p.role||'viewer').replace(/_/g,' '),
+    email:    p.email,
+    color:    p.avatar_color || '#1B6B5A',
+    level:    p.level
+  };
+  // Also patch seed tasks/projects owner to current user UUID
+  // so they show up in "My Tasks" after first login
+  DATA.tasks.forEach(t => {
+    if (t.assignee === 1 || t.assignee === '1') t.assignee = p.id;
+    if (t.reporter === 1 || t.reporter === '1') t.reporter = p.id;
+    if (t.created_by === 1) t.created_by = p.id;
+  });
+  DATA.projects.forEach(proj => {
+    if (proj.owner === 1 || proj.owner === '1') proj.owner = p.id;
+    if (Array.isArray(proj.team)) {
+      proj.team = proj.team.map(uid => (uid===1||uid==='1') ? p.id : uid);
+    }
+  });
   window.currentUser = {
     id:       p.id,
     name:     p.full_name,
@@ -10828,8 +10778,15 @@ function myId() {
   return window._authUser?.id || window.currentUser?.id || 1;
 }
 function isMe(id) {
+  if (id === undefined || id === null) return false;
   const me = myId();
-  return id === me || String(id) === String(me);
+  // Direct match
+  if (id === me) return true;
+  if (String(id) === String(me)) return true;
+  // If logged in with Supabase but seed data uses numeric id:1
+  // treat numeric 1 as current user's legacy ID
+  if (window._authUser && (id === 1 || id === '1')) return true;
+  return false;
 }
 </script>
 
