@@ -1454,8 +1454,8 @@ function renderDashboard() {
           <button class="btn btn-ghost btn-sm" onclick="navigate('my-tasks')">View all</button>
         </div>
         ${myTasks.slice(0,5).map(t => `
-          <div class="checklist-item" onclick="navigate('task-detail', ${t.id})" style="cursor:pointer">
-            <div class="check-box ${t.status==='done'?'checked':''}" onclick="event.stopPropagation();toggleTaskStatus(${t.id})"></div>
+          <div class="checklist-item" onclick="navigate('task-detail','\${t.id}')" style="cursor:pointer">
+            <div class="check-box ${t.status==='done'?'checked':''}" onclick="event.stopPropagation();toggleTaskStatus('${t.id}')"></div>
             <div style="flex:1;min-width:0">
               <div style="font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
               <div style="font-size:11.5px;color:var(--text3);margin-top:2px">${projectName(t.project)} · Due ${formatDate(t.due)}</div>
@@ -1471,7 +1471,7 @@ function renderDashboard() {
           <button class="btn btn-ghost btn-sm" onclick="navigate('projects-list')">View all</button>
         </div>
         ${DATA.projects.filter(p=>p.status!=='completed').slice(0,4).map(p => `
-          <div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('project-detail',${p.id})">
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('project-detail','${p.id}')">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
               <div style="font-size:13.5px;font-weight:500">${p.name}</div>
               <span class="badge-status ${p.status}">${p.status.replace('-',' ')}</span>
@@ -1581,22 +1581,22 @@ function renderMyTasks() {
           </thead>
           <tbody>
             ${filtered.map(t=>`
-              <tr class="clickable-row" onclick="navigate('task-detail',${t.id})">
+              <tr class="clickable-row" onclick="navigate('task-detail','${t.id}')">
                 <td onclick="event.stopPropagation()">
-                  <div class="check-box ${t.status==='done'?'checked':''}" onclick="toggleTaskStatus(${t.id})"></div>
+                  <div class="check-box ${t.status==='done'?'checked':''}" onclick="toggleTaskStatus('${t.id}')"></div>
                 </td>
                 <td>
                   <div style="font-weight:500;font-size:13.5px">${t.title}</div>
                   <div style="display:flex;gap:4px;margin-top:4px">${t.tags.map(tag=>`<span class="tag">${tag}</span>`).join('')}</div>
                 </td>
-                <td><span style="font-size:13px;color:var(--accent-text);cursor:pointer" onclick="event.stopPropagation();navigate('project-detail',${t.project})">${projectName(t.project)}</span></td>
+                <td><span style="font-size:13px;color:var(--accent-text);cursor:pointer" onclick="event.stopPropagation();navigate('project-detail','${t.project}')">${projectName(t.project)}</span></td>
                 <td><span class="badge-priority ${t.priority}">${t.priority}</span></td>
                 <td><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></td>
                 <td style="font-size:13px;color:${isOverdue(t.due)&&t.status!=='done'?'var(--red)':'var(--text2)'}">${formatDate(t.due)}</td>
                 <td onclick="event.stopPropagation()">
                   <div style="display:flex;gap:4px">
-                    <button class="btn btn-ghost btn-sm" onclick="navigate('task-detail',${t.id})"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button>
-                    <button class="btn btn-ghost btn-sm" onclick="openEditTaskModal(${t.id})"><span class="material-icons-round" style="font-size:15px">edit</span></button>
+                    <button class="btn btn-ghost btn-sm" onclick="navigate('task-detail','${t.id}')"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button>
+                    <button class="btn btn-ghost btn-sm" onclick="openEditTaskModal('${t.id}')"><span class="material-icons-round" style="font-size:15px">edit</span></button>
                   </div>
                 </td>
               </tr>
@@ -1611,7 +1611,7 @@ function renderMyTasks() {
 
 // ==================== TASK DETAIL ====================
 function renderTaskDetail(taskId) {
-  const t = DATA.tasks.find(x=>x.id===taskId);
+  const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
   if (!t) return '<div class="empty-state"><span class="material-icons-round">error</span><p>Task not found.</p></div>';
   const p = DATA.projects.find(x=>x.id===t.project);
   const user = DATA.users.find(u=>String(u.id)===String(t.assignee));
@@ -1626,9 +1626,9 @@ function renderTaskDetail(taskId) {
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
           <div>
             <div style="font-size:18px;font-weight:600;line-height:1.4;margin-bottom:6px">${t.title}</div>
-            <div style="font-size:13px;color:var(--text2)">in <span style="color:var(--accent-text);cursor:pointer" onclick="navigate('project-detail',${t.project})">${p?.name || 'Unknown'}</span></div>
+            <div style="font-size:13px;color:var(--text2)">in <span style="color:var(--accent-text);cursor:pointer" onclick="navigate('project-detail','${t.project}')">${p?.name || 'Unknown'}</span></div>
           </div>
-          <button class="btn btn-secondary btn-sm" onclick="openEditTaskModal(${t.id})"><span class="material-icons-round">edit</span>Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openEditTaskModal('${t.id}')"><span class="material-icons-round">edit</span>Edit</button>
         </div>
         <hr class="divider">
         <div class="detail-panel">
@@ -1644,7 +1644,7 @@ function renderTaskDetail(taskId) {
             <hr class="divider">
             <div class="section-header">
               <div class="section-title">Comments</div>
-              <button class="btn btn-secondary btn-sm" onclick="openAddCommentModal(${t.id})"><span class="material-icons-round">add</span>Add Comment</button>
+              <button class="btn btn-secondary btn-sm" onclick=\"openAddCommentModal('\${t.id}')\"><span class="material-icons-round">add</span>Add Comment</button>
             </div>
             ${t.comments && t.comments.length > 0 ? t.comments.map(c=>`<div style="padding:10px;background:var(--surface2);border-radius:var(--radius);margin-bottom:8px;font-size:13.5px">${c}</div>`).join('') : '<div style="color:var(--text3);font-size:13.5px">No comments yet.</div>'}
           </div>
@@ -1683,7 +1683,7 @@ function renderNotifications() {
     </div>
     <div class="card" style="padding:0;max-width:680px">
       ${DATA.notifications.map(n=>`
-        <div class="notif-item ${n.read?'':'unread'}" onclick="navigate('project-detail',${n.project})">
+        <div class="notif-item ${n.read?'':'unread'}" onclick="navigate('project-detail','\${n.project}')">
           <div class="activity-icon" style="background:var(--accent-bg);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <span class="material-icons-round" style="font-size:16px;color:var(--accent)">${n.type==='task'?'task':n.type==='comment'?'chat':n.type==='status'?'update':'alternate_email'}</span>
           </div>
@@ -1810,7 +1810,7 @@ function renderProjectsList() {
           </thead>
           <tbody>
             ${DATA.projects.map(p=>`
-              <tr class="clickable-row" onclick="navigate('project-detail',${p.id})">
+              <tr class="clickable-row" onclick="navigate('project-detail','${p.id}')">
                 <td>
                   <div style="font-weight:500">${p.name}</div>
                   <div style="font-size:11.5px;color:var(--text3);font-family:'JetBrains Mono',monospace">${p.code}</div>
@@ -1831,7 +1831,7 @@ function renderProjectsList() {
                 </td>
                 <td style="font-size:13px;color:var(--text2)">${formatDate(p.due)}</td>
                 <td>
-                  <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();navigate('project-detail',${p.id})"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button>
+                  <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();navigate('project-detail','${p.id}')"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button>
                 </td>
               </tr>
             `).join('')}
@@ -1866,12 +1866,12 @@ function renderProjectDetail(projectId) {
           <div class="page-subtitle">${p.description}</div>
         </div>
         <div class="page-actions">
-          <button class="btn btn-secondary" onclick="navigate('kanban',${p.id})"><span class="material-icons-round">view_kanban</span>Kanban</button>
+          <button class="btn btn-secondary" onclick="navigate('kanban','\${p.id}')"><span class="material-icons-round">view_kanban</span>Kanban</button>
           <button class="btn btn-primary" onclick="openNewTaskModal('${p.id}')"><span class="material-icons-round">add</span>Add Task</button>
         </div>
       </div>
       <div class="tabs">
-        ${['overview','tasks','team','activity'].map(t=>`<div class="tab ${tab===t?'active':''}" onclick="currentTab['project-detail']='${t}';navigate('project-detail',${p.id})">${t.charAt(0).toUpperCase()+t.slice(1)}</div>`).join('')}
+        ${['overview','tasks','team','activity'].map(t=>`<div class="tab ${tab===t?'active':''}" onclick="currentTab['project-detail']='${t}';navigate('project-detail','${p.id}')">${t.charAt(0).toUpperCase()+t.slice(1)}</div>`).join('')}
       </div>
       ${tab==='overview' ? renderProjectOverview(p) : ''}
       ${tab==='tasks' ? renderProjectTasks(p, projectTasks) : ''}
@@ -1909,8 +1909,8 @@ function renderProjectTasks(p, projectTasks) {
           <thead><tr><th></th><th>Task</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Due</th></tr></thead>
           <tbody>
             ${projectTasks.map(t=>`
-              <tr class="clickable-row" onclick="navigate('task-detail',${t.id})">
-                <td onclick="event.stopPropagation()"><div class="check-box ${t.status==='done'?'checked':''}" onclick="toggleTaskStatus(${t.id})"></div></td>
+              <tr class="clickable-row" onclick="navigate('task-detail','${t.id}')">
+                <td onclick="event.stopPropagation()"><div class="check-box ${t.status==='done'?'checked':''}" onclick="toggleTaskStatus('${t.id}')"></div></td>
                 <td><div style="font-weight:500">${t.title}</div></td>
                 <td>${DATA.users.find(u=>String(u.id)===String(t.assignee))?.name||'—'}</td>
                 <td><span class="badge-priority ${t.priority}">${t.priority}</span></td>
@@ -1980,7 +1980,7 @@ function renderPerformance() {
         ${[...DATA.projects].sort((a,b)=>b.progress-a.progress).map(p=>`
           <div style="margin-bottom:12px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <div style="font-size:13px;font-weight:500;cursor:pointer" onclick="navigate('project-detail',${p.id})">${p.name}</div>
+              <div style="font-size:13px;font-weight:500;cursor:pointer" onclick="navigate('project-detail','${p.id}')">${p.name}</div>
               <span style="font-size:12px;color:var(--text3)">${p.progress}%</span>
             </div>
             <div class="progress-bar"><div class="progress-fill ${p.progress>=70?'green':p.progress>=40?'':'amber'}" style="width:${p.progress}%"></div></div>
@@ -2039,7 +2039,7 @@ function renderKanban(projectId) {
               <span class="kanban-count">${colTasks.length}</span>
             </div>
             ${colTasks.map(t=>`
-              <div class="kanban-card" onclick="navigate('task-detail',${t.id})">
+              <div class="kanban-card" onclick="navigate('task-detail','${t.id}')">
                 <div class="kanban-card-tags">${t.tags.map(tag=>`<span class="tag">${tag}</span>`).join('')}</div>
                 <div class="kanban-card-title">${t.title}</div>
                 <div class="kanban-card-meta">
@@ -2100,7 +2100,7 @@ function renderRoadmap() {
     <!-- Bars -->
     ${bars.map(b=>{
       const sc = b.status==='in-progress'?'var(--blue)':b.status==='completed'?'var(--green)':b.status==='on-hold'?'var(--text3)':'var(--amber)';
-      return `<div style="display:grid;grid-template-columns:180px 1fr;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('project-detail',${b.id})" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      return `<div style="display:grid;grid-template-columns:180px 1fr;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('project-detail','\${b.id}')" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
         <div style="padding:10px 14px;font-size:12.5px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:6px">
           <span style="width:8px;height:8px;border-radius:50%;background:${sc};flex-shrink:0"></span>
           ${b.label.length>22?b.label.slice(0,21)+'…':b.label}
@@ -2121,7 +2121,7 @@ function renderRoadmap() {
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Project</th><th>Due Date</th><th>Priority</th><th>Status</th><th>Progress</th><th></th></tr></thead>
-      <tbody>${DATA.projects.sort((a,b)=>new Date(a.due||'2099')-new Date(b.due||'2099')).map(p=>`<tr class="clickable-row" onclick="navigate('project-detail',${p.id})">
+      <tbody>${DATA.projects.sort((a,b)=>new Date(a.due||'2099')-new Date(b.due||'2099')).map(p=>`<tr class="clickable-row" onclick="navigate('project-detail','${p.id}')">
         <td style="font-weight:500">${p.name}</td>
         <td style="font-size:13px;color:${isOverdue(p.due)&&p.status!=='completed'?'var(--red)':'var(--text2)'}">${formatDate(p.due)||'—'}</td>
         <td><span class="badge-priority ${p.priority||'medium'}">${p.priority||'medium'}</span></td>
@@ -2132,7 +2132,7 @@ function renderRoadmap() {
             <span style="font-size:12px;color:var(--text2);font-weight:600">${p.progress||0}%</span>
           </div>
         </td>
-        <td><button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();navigate('project-detail',${p.id})"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button></td>
+        <td><button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();navigate('project-detail','${p.id}')"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button></td>
       </tr>`).join('')}</tbody>
     </table></div>
   </div>`;
@@ -2177,7 +2177,7 @@ function renderCalendar() {
       <div class="card">
         <div class="card-title" style="margin-bottom:14px">Upcoming Deadlines</div>
         ${DATA.tasks.filter(t=>t.status!=='done').sort((a,b)=>new Date(a.due)-new Date(b.due)).slice(0,6).map(t=>`
-          <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('task-detail',${t.id})">
+          <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('task-detail','${t.id}')">
             <div style="width:40px;text-align:center;flex-shrink:0">
               <div style="font-size:18px;font-weight:600;color:${isOverdue(t.due)?'var(--red)':'var(--text)'};line-height:1">${new Date(t.due).getDate()}</div>
               <div style="font-size:10px;color:var(--text3)">Mar</div>
@@ -2207,7 +2207,7 @@ function renderTeam() {
         const done = DATA.tasks.filter(t=>String(t.assignee)===String(u.id)&&t.status==='done').length;
         const projects = [...new Set(DATA.tasks.filter(t=>String(t.assignee)===String(u.id)).map(t=>t.project))].length;
         return `
-          <div class="card" style="cursor:pointer" onclick="window.UM_STATE.activeUserId=${u.id};window.UM_STATE.editTab='profile';navigate('user-management')" style="cursor:pointer" onclick="showUserDetail(${u.id})">
+          <div class="card" style="cursor:pointer" onclick="window.UM_STATE.activeUserId=${u.id};window.UM_STATE.editTab='profile';navigate('user-management')" style="cursor:pointer" onclick=\"showUserDetail('\${u.id}')\">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
               <div class="avatar" style="width:46px;height:46px;background:${u.color};font-size:16px;flex-shrink:0">${u.initials}</div>
               <div>
@@ -2240,10 +2240,10 @@ function renderIssues() {
           <thead><tr><th>#</th><th>Issue</th><th>Project</th><th>Priority</th><th>Status</th><th>Assignee</th><th>Reported</th><th></th></tr></thead>
           <tbody>
             ${DATA.issues.map(i=>`
-              <tr class="clickable-row" onclick="navigate('software-issues')" onclick="openIssueDetail(${i.id})">
+              <tr class="clickable-row" onclick="navigate('software-issues')" onclick=\"openIssueDetail('\${i.id}')\">
                 <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3)">#${i.id}</td>
                 <td><div style="font-weight:500">${i.title}</div></td>
-                <td><span style="color:var(--accent-text);font-size:13px;cursor:pointer" onclick="event.stopPropagation();navigate('project-detail',${i.project})">${projectName(i.project)}</span></td>
+                <td><span style="color:var(--accent-text);font-size:13px;cursor:pointer" onclick="event.stopPropagation();navigate('project-detail','\${i.project}')">${projectName(i.project)}</span></td>
                 <td><span class="badge-priority ${i.priority}">${i.priority}</span></td>
                 <td><span class="badge-status ${i.status}">${i.status}</span></td>
                 <td>${DATA.users.find(u=>u.id===i.assignee)?.name||'—'}</td>
@@ -2271,7 +2271,7 @@ function renderPartners() {
           <thead><tr><th>Organisation</th><th>Country</th><th>Contact</th><th>Type</th><th>Status</th><th>Since</th><th></th></tr></thead>
           <tbody>
             ${DATA.partners.map(p=>`
-              <tr class="clickable-row" onclick="navigate('software-issues')" onclick="openPartnerDetail(${p.id})">
+              <tr class="clickable-row" onclick="navigate('software-issues')" onclick=\"openPartnerDetail('\${p.id}')\">
                 <td><div style="font-weight:500">${p.name}</div></td>
                 <td>${p.country}</td>
                 <td><div>${p.contact}</div>${p.email?`<div style="font-size:12px;color:var(--text3)">${p.email}</div>`:''}</td>
@@ -2631,8 +2631,8 @@ function renderSettingsTeam() {
             </div>
             <span class="badge-status active" style="font-size:10.5px">Active</span>
             <div style="display:flex;gap:4px">
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="showUserDetail(${u.id})" data-tip="View"><span class="material-icons-round" style="font-size:15px">visibility</span></button>
-              <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditMemberModal(${u.id})" data-tip="Edit"><span class="material-icons-round" style="font-size:15px">edit</span></button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick=\"showUserDetail('\${u.id}')\" data-tip="View"><span class="material-icons-round" style="font-size:15px">visibility</span></button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick=\"openEditMemberModal('\${u.id}')\" data-tip="Edit"><span class="material-icons-round" style="font-size:15px">edit</span></button>
               ${u.id!==1?`<button class="btn btn-ghost btn-sm btn-icon" onclick="showToast('User deactivated','info')" data-tip="Deactivate"><span class="material-icons-round" style="font-size:15px;color:var(--red-text)">person_off</span></button>`:''}
             </div>
           </div>`;
@@ -2716,9 +2716,9 @@ function renderSettingsIntegrations() {
           <div style="display:flex;gap:8px">
             ${i.status==='active'||i.status==='configured' ? `
               <button class="btn btn-secondary btn-sm" style="flex:1" onclick="showToast('${i.name} settings opened','info')"><span class="material-icons-round">settings</span>Configure</button>
-              <button class="btn btn-danger btn-sm" onclick="disconnectIntegration(${i.id})" data-tip="Disconnect"><span class="material-icons-round">link_off</span></button>
+              <button class="btn btn-danger btn-sm" onclick=\"disconnectIntegration('\${i.id}')\" data-tip="Disconnect"><span class="material-icons-round">link_off</span></button>
             ` : `
-              <button class="btn btn-primary btn-sm" style="flex:1" onclick="connectIntegration(${i.id})"><span class="material-icons-round">add_link</span>Connect</button>
+              <button class="btn btn-primary btn-sm" style="flex:1" onclick=\"connectIntegration('\${i.id}')\"><span class="material-icons-round">add_link</span>Connect</button>
             `}
           </div>
         </div>`;
@@ -3712,7 +3712,7 @@ function openNewTaskModal(projectId) {
 }
 
 function openEditTaskModal(taskId) {
-  const t = DATA.tasks.find(x=>x.id===taskId);
+  const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
   if(!t) return;
   openModal('Edit Task', `
     <div class="modal-body">
@@ -3733,9 +3733,9 @@ function openEditTaskModal(taskId) {
       <div class="form-group"><div class="form-label">Description</div><textarea class="form-control" id="et-desc">${t.description}</textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-danger" onclick="deleteTask(${t.id})">Delete</button>
+      <button class="btn btn-danger" onclick=\"deleteTask('\${t.id}')\">Delete</button>
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveEditTask(${t.id})">Save Changes</button>
+      <button class="btn btn-primary" onclick=\"saveEditTask('\${t.id}')\">Save Changes</button>
     </div>
   `);
 }
@@ -3770,7 +3770,7 @@ function openIssueDetail(issueId) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Close</button>
-      <button class="btn btn-primary" onclick="resolveIssue(${i.id})">Mark Resolved</button>
+      <button class="btn btn-primary" onclick=\"resolveIssue('\${i.id}')\">Mark Resolved</button>
     </div>
   `);
 }
@@ -3875,7 +3875,7 @@ function showUserDetail(userId) {
 
 
 function saveEditTask(taskId) {
-  const t = DATA.tasks.find(x=>x.id===taskId);
+  const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
   if(!t) return;
   t.title = document.getElementById('et-title')?.value || t.title;
   t.priority = document.getElementById('et-priority')?.value || t.priority;
@@ -3925,7 +3925,7 @@ function toggleTaskStatus(taskId) {
 }
 
 function updateTaskStatus(taskId, status) {
-  const t = DATA.tasks.find(x=>x.id===taskId);
+  const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
   if(!t) return;
   t.status = status;
   updateBadges();
@@ -3933,7 +3933,7 @@ function updateTaskStatus(taskId, status) {
 }
 
 function addComment(taskId) {
-  const t = DATA.tasks.find(x=>x.id===taskId);
+  const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
   const comment = document.getElementById('new-comment')?.value.trim();
   if(!t || !comment) return;
   if(!t.comments) t.comments = [];
@@ -4101,10 +4101,10 @@ function renderGlobalSearch() {
     <div id="gs-results">
       <div class="grid-2" style="gap:16px">
         <div class="card"><div class="card-title" style="margin-bottom:12px">Tasks (${tResults.length})</div>
-          ${tResults.slice(0,6).map(t=>`<div class="checklist-item" onclick="navigate('task-detail',${t.id})" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--text3)">task</span><div><div style="font-weight:500;font-size:13.5px">${t.title}</div><div style="font-size:12px;color:var(--text3)">${projectName(t.project)}</div></div><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}
+          ${tResults.slice(0,6).map(t=>`<div class="checklist-item" onclick="navigate('task-detail','${t.id}')" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--text3)">task</span><div><div style="font-weight:500;font-size:13.5px">${t.title}</div><div style="font-size:12px;color:var(--text3)">${projectName(t.project)}</div></div><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}
         </div>
         <div class="card"><div class="card-title" style="margin-bottom:12px">Projects (${pResults.length})</div>
-          ${pResults.slice(0,6).map(p=>`<div class="checklist-item" onclick="navigate('project-detail',${p.id})" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--accent)">folder_open</span><div><div style="font-weight:500;font-size:13.5px">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.category} · ${p.status}</div></div></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}
+          ${pResults.slice(0,6).map(p=>`<div class="checklist-item" onclick="navigate('project-detail','${p.id}')" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--accent)">folder_open</span><div><div style="font-weight:500;font-size:13.5px">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.category} · ${p.status}</div></div></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}
         </div>
       </div>
     </div>`;
@@ -4113,8 +4113,8 @@ function liveSearch(v) {
   const tR = DATA.tasks.filter(t=>t.title.toLowerCase().includes(v.toLowerCase()));
   const pR = DATA.projects.filter(p=>p.name.toLowerCase().includes(v.toLowerCase()));
   document.getElementById('gs-results').innerHTML = `<div class="grid-2" style="gap:16px">
-    <div class="card"><div class="card-title" style="margin-bottom:12px">Tasks (${tR.length})</div>${tR.slice(0,8).map(t=>`<div class="checklist-item" onclick="navigate('task-detail',${t.id})" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--text3)">task</span><div><div style="font-weight:500;font-size:13.5px">${t.title}</div><div style="font-size:12px;color:var(--text3)">${projectName(t.project)}</div></div><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}</div>
-    <div class="card"><div class="card-title" style="margin-bottom:12px">Projects (${pR.length})</div>${pR.slice(0,8).map(p=>`<div class="checklist-item" onclick="navigate('project-detail',${p.id})" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--accent)">folder_open</span><div><div style="font-weight:500;font-size:13.5px">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.category}</div></div></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}</div>
+    <div class="card"><div class="card-title" style="margin-bottom:12px">Tasks (${tR.length})</div>${tR.slice(0,8).map(t=>`<div class="checklist-item" onclick="navigate('task-detail','${t.id}')" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--text3)">task</span><div><div style="font-weight:500;font-size:13.5px">${t.title}</div><div style="font-size:12px;color:var(--text3)">${projectName(t.project)}</div></div><span class="badge-status ${t.status}">${t.status.replace('-',' ')}</span></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}</div>
+    <div class="card"><div class="card-title" style="margin-bottom:12px">Projects (${pR.length})</div>${pR.slice(0,8).map(p=>`<div class="checklist-item" onclick="navigate('project-detail','${p.id}')" style="cursor:pointer"><span class="material-icons-round" style="font-size:16px;color:var(--accent)">folder_open</span><div><div style="font-weight:500;font-size:13.5px">${p.name}</div><div style="font-size:12px;color:var(--text3)">${p.category}</div></div></div>`).join('') || '<div style="color:var(--text3);font-size:13px">No results</div>'}</div>
   </div>`;
 }
 
@@ -4140,7 +4140,7 @@ function renderGTMProjects() {
             <td style="min-width:120px"><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${p.progress}%"></div></div><span style="font-size:12px;color:var(--text3)">${p.progress}%</span></div></td>
             <td style="font-size:13px">${DATA.users.find(u=>String(u.id)===String(p.owner))?.name}</td>
             <td style="font-size:13px;color:var(--text2)">${formatDate(p.due)}</td>
-            <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();navigate('project-detail',${p.id})"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
+            <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();navigate('project-detail','${p.id}')"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
           </tr>`).join('')}
         </tbody>
       </table></div>
@@ -4568,7 +4568,7 @@ function renderCampaigns() {
     ${filtered.map(c=>{
       const pct = c.budget?Math.round(c.spent/c.budget*100):0;
       const sc  = statColor[c.status]||'var(--text3)';
-      return `<div class="card" style="border-top:3px solid ${sc};cursor:pointer" onclick="openCampaignDetail(${c.id})">
+      return `<div class="card" style="border-top:3px solid ${sc};cursor:pointer" onclick=\"openCampaignDetail('\${c.id}')\">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px">${c.name}</div>
@@ -4653,13 +4653,13 @@ function openCampaignDetail(id) {
       <div class="form-group"><div class="form-label">Update Spent (₹)</div>
         <div style="display:flex;gap:8px">
           <input type="number" class="form-control" id="cup-spent" value="${c.spent}">
-          <button class="btn btn-primary btn-sm" onclick="updateCampaignSpent(${c.id})">Update</button>
+          <button class="btn btn-primary btn-sm" onclick=\"updateCampaignSpent('\${c.id}')\">Update</button>
         </div>
       </div>
       <div class="form-group"><div class="form-label">Leads Generated</div>
         <div style="display:flex;gap:8px">
           <input type="number" class="form-control" id="cup-leads" value="${c.leads}" min="0">
-          <button class="btn btn-primary btn-sm" onclick="updateCampaignLeads(${c.id})">Update</button>
+          <button class="btn btn-primary btn-sm" onclick=\"updateCampaignLeads('\${c.id}')\">Update</button>
         </div>
       </div>
     </div>
@@ -4731,7 +4731,7 @@ function renderContentPipeline() {
         </div>
         ${colItems.map(i=>{
           const tc = typeColors[i.type]||'#999';
-          return `<div class="card" style="margin-bottom:8px;cursor:pointer;padding:10px 12px" onclick="openContentDetail(${i.id})">
+          return `<div class="card" style="margin-bottom:8px;cursor:pointer;padding:10px 12px" onclick=\"openContentDetail('\${i.id}')\">
             <div style="font-size:10.5px;padding:1px 6px;border-radius:3px;background:${tc}15;color:${tc};font-weight:600;display:inline-block;margin-bottom:6px">${i.type}</div>
             <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.3;margin-bottom:6px">${i.title}</div>
             <div style="display:flex;align-items:center;justify-content:space-between">
@@ -5115,7 +5115,7 @@ function renderSoftwareIssues() {
                     <button class="btn btn-ghost btn-sm btn-icon" onclick="siView='detail';siActiveId=${b.id};navigate('software-issues')" data-tip="View detail">
                       <span class="material-icons-round" style="font-size:15px">open_in_new</span>
                     </button>
-                    <button class="btn btn-ghost btn-sm btn-icon" onclick="openSIEditModal(${b.id})" data-tip="Edit">
+                    <button class="btn btn-ghost btn-sm btn-icon" onclick=\"openSIEditModal('\${b.id}')\" data-tip="Edit">
                       <span class="material-icons-round" style="font-size:15px">edit</span>
                     </button>
                   </div>
@@ -5162,10 +5162,10 @@ function renderSoftwareIssueDetail(bugId) {
         <div style="font-size:13px;color:var(--text3);margin-top:5px">${b.project} &nbsp;·&nbsp; ${b.module} &nbsp;·&nbsp; Reported ${b.reported}</div>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0">
-        <button class="btn btn-secondary" onclick="openSIEditModal(${b.id})">
+        <button class="btn btn-secondary" onclick=\"openSIEditModal('\${b.id}')\">
           <span class="material-icons-round">edit</span>Edit
         </button>
-        <button class="btn btn-primary" onclick="openSIStatusModal(${b.id})">
+        <button class="btn btn-primary" onclick=\"openSIStatusModal('\${b.id}')\">
           <span class="material-icons-round">update</span>Update Status
         </button>
       </div>
@@ -5245,7 +5245,7 @@ function renderSoftwareIssueDetail(bugId) {
               <textarea class="form-control" id="si-new-comment" rows="3" placeholder="Add a comment... (Shift+Enter for new line, Enter to submit)" style="resize:none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitSIComment(${b.id})}"></textarea>
               <div style="display:flex;justify-content:flex-end;margin-top:8px;gap:8px">
                 <button class="btn btn-secondary btn-sm" onclick="document.getElementById('si-new-comment').value=''">Clear</button>
-                <button class="btn btn-primary btn-sm" onclick="submitSIComment(${b.id})">
+                <button class="btn btn-primary btn-sm" onclick=\"submitSIComment('\${b.id}')\">
                   <span class="material-icons-round">send</span>Add Comment
                 </button>
               </div>
@@ -5317,7 +5317,7 @@ function renderSoftwareIssueDetail(bugId) {
               </button>
             `).join('')}
             <hr class="divider">
-            <button class="btn btn-danger btn-sm" style="justify-content:flex-start" onclick="deleteSIIssue(${b.id})">
+            <button class="btn btn-danger btn-sm" style="justify-content:flex-start" onclick=\"deleteSIIssue('\${b.id}')\">
               <span class="material-icons-round" style="font-size:14px">delete_outline</span>Delete Issue
             </button>
           </div>
@@ -5481,9 +5481,9 @@ function openSIEditModal(bugId) {
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-danger" onclick="deleteSIIssue(${b.id})"><span class="material-icons-round">delete_outline</span>Delete</button>
+      <button class="btn btn-danger" onclick=\"deleteSIIssue('\${b.id}')\"><span class="material-icons-round">delete_outline</span>Delete</button>
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="updateSIIssue(${b.id})"><span class="material-icons-round">save</span>Save Changes</button>
+      <button class="btn btn-primary" onclick=\"updateSIIssue('\${b.id}')\"><span class="material-icons-round">save</span>Save Changes</button>
     </div>
   `, 'lg');
 }
@@ -5507,7 +5507,7 @@ function openSIStatusModal(bugId) {
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="updateSIStatusWithComment(${b.id})"><span class="material-icons-round">update</span>Update Status</button>
+      <button class="btn btn-primary" onclick=\"updateSIStatusWithComment('\${b.id}')\"><span class="material-icons-round">update</span>Update Status</button>
     </div>
   `);
 }
@@ -6294,7 +6294,7 @@ function renderSprintBoard() {
             <div class="sb-card" id="card-${t.id}" data-task="${t.id}" draggable="true"
               ondragstart="sbDragStart(event,${t.id},'${stage.id}')"
               ondragend="sbDragEnd(event)"
-              onclick="navigate('task-detail',${t.id})"
+              onclick="navigate('task-detail','${t.id}')"
               style="background:var(--surface);border:1px solid ${overdue?'var(--red)':'var(--border)'};border-radius:var(--radius);padding:11px 12px;cursor:grab;transition:all 0.13s;user-select:none">
               <!-- Tags -->
               <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:7px">
@@ -6497,7 +6497,7 @@ function sbDrop(e, toStage) {
     document.querySelectorAll('.sb-col').forEach(c=>c.classList.remove('drag-over'));
     return;
   }
-  const task = DATA.tasks.find(t=>t.id===taskId);
+  const task = DATA.tasks.find(t=>String(t.id)===String(taskId));
   if (!task) return;
   const stages   = getSbStages(sbProjectId);
   const stage    = stages.find(s=>s.id===toStage);
@@ -6644,7 +6644,7 @@ function renderProductBacklog() {
     <div class="card" style="padding:0">
       <div class="table-wrap"><table>
         <thead><tr><th></th><th>Item</th><th>Product</th><th>Priority</th><th>Assignee</th><th>Status</th><th>Due</th></tr></thead>
-        <tbody>${DATA.tasks.map((t,i)=>`<tr class="clickable-row" onclick="navigate('task-detail',${t.id})">
+        <tbody>${DATA.tasks.map((t,i)=>`<tr class="clickable-row" onclick="navigate('task-detail','${t.id}')">
           <td style="color:var(--text3);font-size:12px;font-family:'JetBrains Mono',monospace">${String(i+1).padStart(2,'0')}</td>
           <td><div style="font-weight:500">${t.title}</div><div style="display:flex;gap:4px;margin-top:3px">${t.tags.map(tag=>`<span class="tag">${tag}</span>`).join('')}</div></td>
           <td style="font-size:13px">${projectName(t.project)}</td>
@@ -6694,7 +6694,7 @@ function renderReleaseCalendar() {
         </div>
         <!-- Card -->
         <div style="flex:1;padding:0 0 20px 14px">
-          <div class="card" style="border-left:3px solid ${sc};cursor:pointer" onclick="openReleaseDetail(${r.id})">
+          <div class="card" style="border-left:3px solid ${sc};cursor:pointer" onclick=\"openReleaseDetail('\${r.id}')\">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
               <div>
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -7211,7 +7211,7 @@ function renderEventDetail(eventId) {
       <div style="font-size:13px;color:var(--text3);margin-top:4px"><span class="material-icons-round" style="font-size:13px;vertical-align:middle">location_on</span> ${e.location} · <span class="material-icons-round" style="font-size:13px;vertical-align:middle">calendar_today</span> ${formatDate(e.date)}${e.end!==e.date?' – '+formatDate(e.end):''}</div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" onclick="openEditEventModal(${e.id})"><span class="material-icons-round">edit</span>Edit</button>
+      <button class="btn btn-secondary" onclick=\"openEditEventModal('\${e.id}')\"><span class="material-icons-round">edit</span>Edit</button>
       <button class="btn btn-primary" onclick="window._evDetailTab='outcomes';navigate('events')"><span class="material-icons-round">task_alt</span>Record Outcome</button>
     </div>
   </div>
@@ -7266,12 +7266,12 @@ function renderEventBudgetTab(e,pct){
   </div>
   <div class="card"><div class="card-header"><div class="card-title">Budget Breakdown by Category</div><button class="btn btn-secondary btn-sm" onclick="showToast('Budget exported','success')"><span class="material-icons-round">download</span>Export</button></div>
     ${categories.map(c=>`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:13.5px;font-weight:500">${c.cat}</span><div style="text-align:right"><span style="font-size:13px;font-weight:600">₹${Math.round(c.amt/1000)}K</span><span style="font-size:11.5px;color:var(--text3);margin-left:6px">${c.pct}%</span></div></div><div class="progress-bar"><div class="progress-fill" style="width:${c.pct}%;background:var(--brand)"></div></div></div>`).join('')}
-    <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-secondary btn-sm" onclick="openEditEventModal(${e.id})"><span class="material-icons-round">edit</span>Edit Budget</button></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-secondary btn-sm" onclick=\"openEditEventModal('\${e.id}')\"><span class="material-icons-round">edit</span>Edit Budget</button></div>
   </div>`;
 }
 
 function renderEventMilestonesTab(e){
-  return `<div class="card"><div class="card-header"><div class="card-title">Milestones <span style="font-size:12px;font-weight:400;color:var(--text3)">${e.milestones.filter(m=>m.done).length} of ${e.milestones.length} complete</span></div><button class="btn btn-primary btn-sm" onclick="openAddMilestoneModal(${e.id})"><span class="material-icons-round">add</span>Add</button></div>
+  return `<div class="card"><div class="card-header"><div class="card-title">Milestones <span style="font-size:12px;font-weight:400;color:var(--text3)">${e.milestones.filter(m=>m.done).length} of ${e.milestones.length} complete</span></div><button class="btn btn-primary btn-sm" onclick=\"openAddMilestoneModal('\${e.id}')\"><span class="material-icons-round">add</span>Add</button></div>
     <div class="progress-bar" style="margin-bottom:14px;height:8px"><div class="progress-fill ${e.milestones.filter(m=>m.done).length===e.milestones.length?'green':''}" style="width:${e.milestones.length?Math.round(e.milestones.filter(m=>m.done).length/e.milestones.length*100):0}%"></div></div>
     ${e.milestones.length===0?'<div class="empty-state"><span class="material-icons-round">flag</span><p>No milestones yet.</p></div>':''}
     ${e.milestones.map((m,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div class="check-box ${m.done?'checked':''}" onclick="toggleEventMilestone(${e.id},${i})"></div><div style="flex:1"><div style="font-size:13.5px;font-weight:500;${m.done?'text-decoration:line-through;color:var(--text3)':''}">${m.label}</div></div><span class="badge-status ${m.done?'done':'pending'}">${m.done?'Done':'Pending'}</span><button class="btn btn-ghost btn-sm btn-icon" onclick="removeEventMilestone(${e.id},${i})"><span class="material-icons-round" style="font-size:14px;color:var(--text3)">delete_outline</span></button></div>`).join('')}
@@ -7279,7 +7279,7 @@ function renderEventMilestonesTab(e){
 }
 
 function renderEventCustomersTab(e){
-  return `<div class="card"><div class="card-header"><div class="card-title">Target Customers <span style="font-size:12px;font-weight:400;color:var(--text3)">${e.targetCustomers.length} targets · ${e.leads} confirmed leads</span></div><button class="btn btn-primary btn-sm" onclick="openAddCustomerModal(${e.id})"><span class="material-icons-round">add</span>Add Target</button></div>
+  return `<div class="card"><div class="card-header"><div class="card-title">Target Customers <span style="font-size:12px;font-weight:400;color:var(--text3)">${e.targetCustomers.length} targets · ${e.leads} confirmed leads</span></div><button class="btn btn-primary btn-sm" onclick=\"openAddCustomerModal('\${e.id}')\"><span class="material-icons-round">add</span>Add Target</button></div>
     ${e.targetCustomers.length===0?'<div class="empty-state"><span class="material-icons-round">people</span><p>No target customers defined.</p></div>':''}
     ${e.targetCustomers.map((c,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:36px;height:36px;background:var(--accent-bg);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="material-icons-round" style="font-size:17px;color:var(--brand)">business</span></div><div style="flex:1"><div style="font-size:13.5px;font-weight:500">${c}</div></div><span class="badge-status ${i<e.leads?'active':'pending'}">${i<e.leads?'Lead Generated':'Targeted'}</span><button class="btn btn-ghost btn-sm btn-icon" onclick="removeEventCustomer(${e.id},${i})"><span class="material-icons-round" style="font-size:14px;color:var(--text3)">delete_outline</span></button></div>`).join('')}
     ${e.leads>0?`<div style="margin-top:12px;padding:10px 12px;background:var(--green-bg);border:1px solid #BBF7D0;border-radius:var(--radius);display:flex;align-items:center;gap:8px"><span class="material-icons-round" style="color:var(--green)">emoji_events</span><span style="font-size:13.5px;color:var(--green-text);font-weight:500">${e.leads} lead${e.leads>1?'s':''} generated</span></div>`:''}
@@ -7293,18 +7293,18 @@ function renderEventOutcomesTab(e){
       ${e.outcomes?`<div style="font-size:13.5px;line-height:1.8;color:var(--text);background:var(--surface2);padding:12px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:12px">${e.outcomes}</div>`:`<div style="color:var(--text3);font-size:13.5px;font-style:italic;padding:12px 0">No outcomes recorded yet.</div>`}
       <div class="form-label" style="margin-bottom:6px">Update Outcomes</div>
       <textarea class="form-control" id="ev-outcome-${e.id}" rows="5" placeholder="Record outcomes, decisions, next steps...">${e.outcomes}</textarea>
-      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn btn-primary" onclick="saveEventOutcome(${e.id})"><span class="material-icons-round">save</span>Save</button></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn btn-primary" onclick=\"saveEventOutcome('\${e.id}')\"><span class="material-icons-round">save</span>Save</button></div>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">Leads Generated</div><div style="display:flex;gap:8px;align-items:center"><input type="number" class="form-control" id="ev-leads-${e.id}" value="${e.leads}" min="0" style="width:70px;font-size:14px;text-align:center"><button class="btn btn-primary btn-sm" onclick="saveEventLeads(${e.id})">Update</button></div></div>
+      <div class="card-header"><div class="card-title">Leads Generated</div><div style="display:flex;gap:8px;align-items:center"><input type="number" class="form-control" id="ev-leads-${e.id}" value="${e.leads}" min="0" style="width:70px;font-size:14px;text-align:center"><button class="btn btn-primary btn-sm" onclick=\"saveEventLeads('\${e.id}')\">Update</button></div></div>
     </div>
   </div>`;
 }
 
 function renderEventAchievementsTab(e){
   return `<div class="card">
-    <div class="card-header"><div class="card-title">Achievements</div><button class="btn btn-primary btn-sm" onclick="openAddAchievementModal(${e.id})"><span class="material-icons-round">add</span>Add</button></div>
-    ${e.achievements.length===0?`<div class="empty-state"><span class="material-icons-round">emoji_events</span><p>No achievements yet.</p><button class="btn btn-primary" onclick="openAddAchievementModal(${e.id})">Add First Achievement</button></div>`:e.achievements.map((a,i)=>`<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:34px;height:34px;background:var(--amber-bg);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="material-icons-round" style="font-size:17px;color:var(--amber)">emoji_events</span></div><div style="flex:1;font-size:13.5px;font-weight:500">${a}</div><button class="btn btn-ghost btn-sm btn-icon" onclick="removeEventAchievement(${e.id},${i})"><span class="material-icons-round" style="font-size:14px;color:var(--text3)">delete_outline</span></button></div>`).join('')}
+    <div class="card-header"><div class="card-title">Achievements</div><button class="btn btn-primary btn-sm" onclick=\"openAddAchievementModal('\${e.id}')\"><span class="material-icons-round">add</span>Add</button></div>
+    ${e.achievements.length===0?`<div class="empty-state"><span class="material-icons-round">emoji_events</span><p>No achievements yet.</p><button class="btn btn-primary" onclick=\"openAddAchievementModal('\${e.id}')\">Add First Achievement</button></div>`:e.achievements.map((a,i)=>`<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)"><div style="width:34px;height:34px;background:var(--amber-bg);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="material-icons-round" style="font-size:17px;color:var(--amber)">emoji_events</span></div><div style="flex:1;font-size:13.5px;font-weight:500">${a}</div><button class="btn btn-ghost btn-sm btn-icon" onclick="removeEventAchievement(${e.id},${i})"><span class="material-icons-round" style="font-size:14px;color:var(--text3)">delete_outline</span></button></div>`).join('')}
   </div>`;
 }
 
@@ -7673,7 +7673,7 @@ function renderUMProfileTab(u) {
       </div>
       <div style="display:flex;justify-content:flex-end;gap:10px">
         <button class="btn btn-secondary" onclick="window.UM_STATE.activeUserId=null;navigate('user-management')">Cancel</button>
-        <button class="btn btn-primary" onclick="saveUserProfile(${u.id})"><span class="material-icons-round">save</span>Save Profile</button>
+        <button class="btn btn-primary" onclick=\"saveUserProfile('\${u.id}')\"><span class="material-icons-round">save</span>Save Profile</button>
       </div>
     </div>
 
@@ -7726,10 +7726,10 @@ function renderUMAssignTab(u) {
 
     <!-- ASSIGN ACTIONS BAR -->
     <div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap">
-      <button class="btn btn-primary btn-sm" onclick="openAssignTaskModal(${u.id})"><span class="material-icons-round">task_alt</span>Assign Task</button>
-      <button class="btn btn-secondary btn-sm" onclick="openAssignIssueModal(${u.id})"><span class="material-icons-round">bug_report</span>Assign Issue</button>
-      <button class="btn btn-secondary btn-sm" onclick="openAssignEventModal(${u.id})"><span class="material-icons-round">event</span>Add to Event</button>
-      <button class="btn btn-secondary btn-sm" onclick="openAssignProjectModal(${u.id})"><span class="material-icons-round">layers</span>Assign to Project</button>
+      <button class="btn btn-primary btn-sm" onclick=\"openAssignTaskModal('\${u.id}')\"><span class="material-icons-round">task_alt</span>Assign Task</button>
+      <button class="btn btn-secondary btn-sm" onclick=\"openAssignIssueModal('\${u.id}')\"><span class="material-icons-round">bug_report</span>Assign Issue</button>
+      <button class="btn btn-secondary btn-sm" onclick=\"openAssignEventModal('\${u.id}')\"><span class="material-icons-round">event</span>Add to Event</button>
+      <button class="btn btn-secondary btn-sm" onclick=\"openAssignProjectModal('\${u.id}')\"><span class="material-icons-round">layers</span>Assign to Project</button>
     </div>
 
     <!-- TASKS SECTION -->
@@ -7740,7 +7740,7 @@ function renderUMAssignTab(u) {
           <div class="card-title">Tasks</div>
           <span style="background:var(--blue-bg);color:var(--blue-text);font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px">${userTasks.length}</span>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openAssignTaskModal(${u.id})"><span class="material-icons-round">add</span>Assign</button>
+        <button class="btn btn-primary btn-sm" onclick=\"openAssignTaskModal('\${u.id}')\"><span class="material-icons-round">add</span>Assign</button>
       </div>
       ${userTasks.length===0?`
         <div style="padding:24px;text-align:center;color:var(--text3);font-size:13.5px">
@@ -7765,7 +7765,7 @@ function renderUMAssignTab(u) {
                   </td>
                   <td>
                     <div style="display:flex;gap:4px">
-                      <button class="btn btn-ghost btn-sm btn-icon" onclick="navigate('task-detail',${t.id})" data-tip="View task"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button>
+                      <button class="btn btn-ghost btn-sm btn-icon" onclick="navigate('task-detail','${t.id}')" data-tip="View task"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button>
                       <button class="btn btn-ghost btn-sm btn-icon" onclick="unassignTask(${t.id},${u.id})" data-tip="Unassign"><span class="material-icons-round" style="font-size:14px;color:var(--red-text)">person_remove</span></button>
                     </div>
                   </td>
@@ -7784,7 +7784,7 @@ function renderUMAssignTab(u) {
           <div class="card-title">Software Issues</div>
           <span style="background:var(--red-bg);color:var(--red-text);font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px">${userIssues.length}</span>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openAssignIssueModal(${u.id})"><span class="material-icons-round">add</span>Assign</button>
+        <button class="btn btn-primary btn-sm" onclick=\"openAssignIssueModal('\${u.id}')\"><span class="material-icons-round">add</span>Assign</button>
       </div>
       ${userIssues.length===0?`
         <div style="padding:24px;text-align:center;color:var(--text3);font-size:13.5px">
@@ -7827,7 +7827,7 @@ function renderUMAssignTab(u) {
           <div class="card-title">Events</div>
           <span style="background:var(--teal-bg);color:var(--teal-text,var(--teal));font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px">${userEvents.length}</span>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openAssignEventModal(${u.id})"><span class="material-icons-round">add</span>Add to Event</button>
+        <button class="btn btn-primary btn-sm" onclick=\"openAssignEventModal('\${u.id}')\"><span class="material-icons-round">add</span>Add to Event</button>
       </div>
       ${userEvents.length===0?`
         <div style="padding:24px;text-align:center;color:var(--text3);font-size:13.5px">
@@ -7864,7 +7864,7 @@ function renderUMAssignTab(u) {
           <span class="material-icons-round" style="color:var(--brand)">layers</span>
           <div class="card-title">Projects</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openAssignProjectModal(${u.id})"><span class="material-icons-round">add</span>Assign</button>
+        <button class="btn btn-primary btn-sm" onclick=\"openAssignProjectModal('\${u.id}')\"><span class="material-icons-round">add</span>Assign</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -7885,7 +7885,7 @@ function renderUMAssignTab(u) {
                   </select>
                 </td>
                 <td>
-                  <button class="btn btn-ghost btn-sm btn-icon" onclick="navigate('project-detail',${p.id})" data-tip="View project"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button>
+                  <button class="btn btn-ghost btn-sm btn-icon" onclick="navigate('project-detail','${p.id}')" data-tip="View project"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button>
                 </td>
               </tr>`;
             }).join('')}
@@ -8087,7 +8087,7 @@ function doAssignTask(userId) {
       due:document.getElementById('at-due')?.value||'2026-04-30', tags:[], description:'', comments:[] });
     closeModal(); showToast(`New task assigned to ${u?.name}`,'success');
   } else if (taskId) {
-    const t = DATA.tasks.find(x=>x.id===taskId);
+    const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
     if (t) { t.assignee = userId; }
     closeModal(); showToast(`Task reassigned to ${u?.name}`,'success');
   } else { showToast('Select a task or enter a new task title','error'); return; }
@@ -8208,7 +8208,7 @@ function doAssignProject(userId) {
 
 // ─── UNASSIGN ACTIONS ─────────────────────────────────────────────────────────
 function unassignTask(taskId, userId) {
-  const t = DATA.tasks.find(x=>x.id===taskId); if(!t) return;
+  const t = DATA.tasks.find(x=>String(x.id)===String(taskId)); if(!t) return;
   const u = DATA.users.find(x=>x.id===userId);
   t.assignee = null;
   showToast(`Task unassigned from ${u?.name}`,'info');
@@ -8481,7 +8481,7 @@ function renderRolesGrid() {
             <button class="btn btn-ghost btn-sm btn-icon" onclick="rolesActiveId=${r.id};navigate('roles')" data-tip="Edit Role">
               <span class="material-icons-round" style="font-size:16px">edit</span>
             </button>
-            ${!r.system?`<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteRole(${r.id})" data-tip="Delete Role"><span class="material-icons-round" style="font-size:16px;color:var(--red-text)">delete_outline</span></button>`:''}
+            ${!r.system?`<button class="btn btn-ghost btn-sm btn-icon" onclick=\"deleteRole('\${r.id}')\" data-tip="Delete Role"><span class="material-icons-round" style="font-size:16px;color:var(--red-text)">delete_outline</span></button>`:''}
           </div>
         </div>
 
@@ -8558,7 +8558,7 @@ function renderRoleEditor(roleId) {
             ${r.system?'<span style="font-size:10.5px;background:var(--surface3);color:var(--text3);padding:2px 8px;border-radius:99px;border:1px solid var(--border)">System Role</span>':''}
           </div>
           <div style="display:flex;gap:6px">
-            ${!r.system?`<button class="btn btn-danger btn-sm" onclick="deleteRole(${r.id})"><span class="material-icons-round">delete_outline</span>Delete</button>`:''}
+            ${!r.system?`<button class="btn btn-danger btn-sm" onclick=\"deleteRole('\${r.id}')\"><span class="material-icons-round">delete_outline</span>Delete</button>`:''}
           </div>
         </div>
         <div class="form-row">
@@ -8665,7 +8665,7 @@ function renderRoleEditor(roleId) {
         <button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="rolesActiveId=null;navigate('roles')">
           <span class="material-icons-round">arrow_back</span>Back to Roles
         </button>
-        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveRole(${r.id})">
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick=\"saveRole('\${r.id}')\">
           <span class="material-icons-round">save</span>Save Role
         </button>
       </div>
@@ -9091,7 +9091,7 @@ function renderAgreementTracker() {
       <tbody>
         ${filtered.map(a=>{
           const tc = typeColors[a.type]||'#999';
-          return `<tr class="clickable-row" onclick="openAgreementDetail(${a.id})">
+          return `<tr class="clickable-row" onclick=\"openAgreementDetail('\${a.id}')\">
             <td><div style="font-weight:600;font-size:13.5px">${a.title}</div></td>
             <td><span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:${tc}18;color:${tc};border:1px solid ${tc}25">${a.type}</span></td>
             <td style="font-size:13px">${a.party}</td>
@@ -9101,9 +9101,9 @@ function renderAgreementTracker() {
             <td style="font-size:13px;font-weight:500">${a.value}</td>
             <td onclick="event.stopPropagation()">
               <div style="display:flex;gap:4px">
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="openAgreementDetail(${a.id})" data-tip="View"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button>
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditAgreementModal(${a.id})" data-tip="Edit"><span class="material-icons-round" style="font-size:14px">edit</span></button>
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteAgreement(${a.id})" data-tip="Delete"><span class="material-icons-round" style="font-size:14px;color:var(--red-text)">delete_outline</span></button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick=\"openAgreementDetail('\${a.id}')\" data-tip="View"><span class="material-icons-round" style="font-size:14px">open_in_new</span></button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick=\"openEditAgreementModal('\${a.id}')\" data-tip="Edit"><span class="material-icons-round" style="font-size:14px">edit</span></button>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick=\"deleteAgreement('\${a.id}')\" data-tip="Delete"><span class="material-icons-round" style="font-size:14px;color:var(--red-text)">delete_outline</span></button>
               </div>
             </td>
           </tr>`;
@@ -9348,7 +9348,7 @@ function renderActionList() {
 
         <!-- Checkbox -->
         <div class="check-box ${a.status==='done'?'checked':''}"
-          onclick="cycleActionStatus(${a.id})"
+          onclick=\"cycleActionStatus('\${a.id}')\"
           style="flex-shrink:0;width:20px;height:20px;cursor:pointer"
           title="${a.status==='open'?'Mark in progress':a.status==='in-progress'?'Mark done':'Reopen'}">
         </div>
@@ -9373,10 +9373,10 @@ function renderActionList() {
           <button class="btn btn-ghost btn-sm btn-icon" onclick="alActive=${a.id};navigate('action-log')" data-tip="View detail">
             <span class="material-icons-round" style="font-size:14px">open_in_new</span>
           </button>
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditActionModal(${a.id})" data-tip="Edit">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick=\"openEditActionModal('\${a.id}')\" data-tip="Edit">
             <span class="material-icons-round" style="font-size:14px">edit</span>
           </button>
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteAction(${a.id})" data-tip="Delete">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick=\"deleteAction('\${a.id}')\" data-tip="Delete">
             <span class="material-icons-round" style="font-size:14px;color:var(--red-text)">delete_outline</span>
           </button>
         </div>
@@ -9414,8 +9414,8 @@ function renderActionDetail(actionId) {
             <div style="font-size:16px;font-weight:600;color:var(--text);line-height:1.4">${a.action}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn btn-secondary btn-sm" onclick="openEditActionModal(${a.id})"><span class="material-icons-round">edit</span>Edit</button>
-            <button class="btn btn-primary btn-sm" onclick="cycleActionStatus(${a.id})">
+            <button class="btn btn-secondary btn-sm" onclick=\"openEditActionModal('\${a.id}')\"><span class="material-icons-round">edit</span>Edit</button>
+            <button class="btn btn-primary btn-sm" onclick=\"cycleActionStatus('\${a.id}')\">
               <span class="material-icons-round">
                 ${a.status==='open'?'play_arrow':a.status==='in-progress'?'check':'replay'}
               </span>
@@ -9452,7 +9452,7 @@ function renderActionDetail(actionId) {
           <div style="flex:1">
             <textarea class="form-control" id="al-comment" rows="2" placeholder="Add a comment..." style="resize:none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addActionComment(${a.id})}"></textarea>
             <div style="display:flex;justify-content:flex-end;margin-top:6px">
-              <button class="btn btn-primary btn-sm" onclick="addActionComment(${a.id})"><span class="material-icons-round">send</span>Comment</button>
+              <button class="btn btn-primary btn-sm" onclick=\"addActionComment('\${a.id}')\"><span class="material-icons-round">send</span>Comment</button>
             </div>
           </div>
         </div>
@@ -9485,7 +9485,7 @@ function renderActionDetail(actionId) {
 
       <div style="display:flex;flex-direction:column;gap:6px">
         <button class="btn btn-secondary" onclick="alActive=null;navigate('action-log')"><span class="material-icons-round">arrow_back</span>Back to Log</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteAction(${a.id})"><span class="material-icons-round">delete_outline</span>Delete Action</button>
+        <button class="btn btn-danger btn-sm" onclick=\"deleteAction('\${a.id}')\"><span class="material-icons-round">delete_outline</span>Delete Action</button>
       </div>
     </div>
   </div>`;
