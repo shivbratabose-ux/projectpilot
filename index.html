@@ -3646,28 +3646,87 @@ function showUserDetail(userId) {
 
 // ==================== ACTIONS ====================
 function saveNewTask() {
-  const title = document.getElementById('nt-title')?.value.trim();
-  if (!title) { showToast('Please enter a task title', 'error'); return; }
-  const newTask = {
-    id: DATA.tasks.length + 1,
+  const title = document.getElementById('nt-title')?.value?.trim();
+  if (!title) { showToast('Task title is required', 'error'); return; }
+
+  const assigneeVal = document.getElementById('nt-assignee')?.value;
+  const taskData = {
     title,
-    project: parseInt(document.getElementById('nt-project')?.value),
-    status: document.getElementById('nt-status')?.value || 'pending',
-    priority: document.getElementById('nt-priority')?.value || 'medium',
-    assignee: parseInt(document.getElementById('nt-assignee')?.value) || 1,
-    due: document.getElementById('nt-due')?.value || '2026-03-31',
-    tags: (document.getElementById('nt-tags')?.value || '').split(',').map(t=>t.trim()).filter(Boolean),
-    description: document.getElementById('nt-desc')?.value || '',
-    comments: []
+    description : document.getElementById('nt-desc')?.value?.trim() || '',
+    status      : document.getElementById('nt-status')?.value || 'todo',
+    priority    : document.getElementById('nt-priority')?.value || 'medium',
+    project     : document.getElementById('nt-project')?.value || null,
+    assignee    : assigneeVal || (window._authUser?.id) || null,
+    due         : document.getElementById('nt-due')?.value || null,
+    tags        : (document.getElementById('nt-tags')?.value || '').split(',').map(t=>t.trim()).filter(Boolean),
   };
-  DATA.tasks.push(newTask);
-  // Update project task counter
-  const proj = DATA.projects.find(p=>p.id===newTask.project);
-  if (proj) proj.tasks = (proj.tasks||0) + 1;
-  closeModal();
-  showToast('Task created','success');
-  updateBadges();
-  navigate(currentScreen);
+
+  const btn = document.querySelector('.btn-primary[onclick="saveNewTask()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  if (window.supa && window._authUser) {
+    supa.from('tasks').insert({
+      title       : taskData.title,
+      description : taskData.description,
+      status      : taskData.status,
+      priority    : taskData.priority,
+      project_id  : taskData.project || null,
+      assignee_id : taskData.assignee || window._authUser.id,
+      reporter_id : window._authUser.id,
+      due_date    : taskData.due || null,
+      tags        : taskData.tags,
+      created_by  : window._authUser.id
+    }).select().single().then(({ data, error }) => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Create Task'; }
+      if (error) {
+        console.error('Task error:', error);
+        showToast('Error: ' + error.message, 'error');
+        return;
+      }
+      DATA.tasks.unshift({
+        id       : data.id,
+        title    : data.title,
+        status   : data.status,
+        priority : data.priority,
+        project  : data.project_id,
+        assignee : data.assignee_id,
+        due      : data.due_date,
+        tags     : data.tags || [],
+        comments : []
+      });
+      // Notify assignee
+      if (data.assignee_id && data.assignee_id !== window._authUser.id) {
+        supa.from('notifications').insert({
+          user_id : data.assignee_id,
+          title   : 'New task assigned: ' + data.title,
+          body    : 'Due: ' + (data.due_date || 'No due date'),
+          type    : 'info',
+          link    : 'my-tasks'
+        });
+      }
+      if (window.logActivity) logActivity('Created task', 'Tasks', data.title, data.id);
+      closeModal();
+      showToast('Task "' + data.title + '" created', 'success');
+      navigate('my-tasks');
+    });
+  } else {
+    if (btn) { btn.disabled = false; }
+    const newId = Date.now();
+    DATA.tasks.unshift({
+      id       : newId,
+      title    : taskData.title,
+      status   : taskData.status,
+      priority : taskData.priority,
+      project  : taskData.project,
+      assignee : taskData.assignee || 1,
+      due      : taskData.due,
+      tags     : taskData.tags,
+      comments : []
+    });
+    closeModal();
+    showToast('Task created (offline)', 'success');
+    navigate('my-tasks');
+  }
 }
 
 function saveEditTask(taskId) {
@@ -3692,18 +3751,32 @@ function deleteTask(taskId) {
 }
 
 function toggleTaskStatus(taskId) {
-  const t = DATA.tasks.find(x=>x.id===taskId);
-  if(!t) return;
-  const wasDone = t.status === 'done';
-  t.status = wasDone ? 'pending' : 'done';
-  // Keep project completed count in sync
-  const proj = DATA.projects.find(p=>p.id===t.project);
-  if (proj) {
-    proj.completed = DATA.tasks.filter(tk=>tk.project===proj.id&&tk.status==='done').length;
-    proj.progress  = proj.tasks > 0 ? Math.round(proj.completed/proj.tasks*100) : 0;
+  const task = DATA.tasks.find(t => t.id == taskId);
+  if (!task) return;
+  const newStatus = task.status === 'done' ? 'todo' : 'done';
+  task.status = newStatus;
+
+  // Update in Supabase
+  if (window.supa && window._authUser) {
+    supa.from('tasks')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', taskId)
+      .then(({ error }) => {
+        if (error) console.error('Status update error:', error);
+      });
   }
-  updateBadges();
-  navigate(currentScreen);
+
+  // Update project progress
+  const proj = DATA.projects.find(p => p.id === task.project);
+  if (proj) {
+    const pTasks = DATA.tasks.filter(t => t.project === proj.id);
+    proj.completed = pTasks.filter(t => t.status === 'done').length;
+    proj.progress  = pTasks.length ? Math.round(proj.completed / pTasks.length * 100) : 0;
+  }
+
+  const label = newStatus === 'done' ? 'Task completed' : 'Task reopened';
+  showToast(label, newStatus === 'done' ? 'success' : 'info');
+  navigate(window.currentScreen || 'my-tasks');
 }
 
 function updateTaskStatus(taskId, status) {
@@ -3726,26 +3799,90 @@ function addComment(taskId) {
 }
 
 function createProject() {
-  const name = document.getElementById('np-name')?.value.trim();
+  const name = document.getElementById('np-name')?.value?.trim();
   if (!name) { showToast('Project name is required', 'error'); return; }
-  const newProj = {
-    id: DATA.projects.length + 1,
+
+  const projectData = {
     name,
-    code: document.getElementById('np-code')?.value || 'PROJ-' + (DATA.projects.length+1),
-    status: 'planning',
-    priority: document.getElementById('np-priority')?.value || 'medium',
-    progress: 0,
-    owner: parseInt(document.getElementById('np-owner')?.value) || 1,
-    team: [parseInt(document.getElementById('np-owner')?.value) || 1],
-    due: document.getElementById('np-due')?.value || '2026-12-31',
-    category: document.getElementById('np-cat')?.value || 'Internal',
-    tasks: 0,
-    completed: 0,
-    description: document.getElementById('np-desc')?.value || ''
+    description : document.getElementById('np-desc')?.value?.trim() || '',
+    status      : document.getElementById('np-status')?.value || 'planning',
+    priority    : document.getElementById('np-priority')?.value || 'medium',
+    startDate   : document.getElementById('np-start')?.value || null,
+    due         : document.getElementById('np-due')?.value || null,
+    budget      : parseFloat(document.getElementById('np-budget')?.value) || 0,
   };
-  DATA.projects.push(newProj);
-  showToast('Project created','success');
-  navigate('project-detail', newProj.id);
+
+  // Show saving state
+  const btn = document.querySelector('.btn-primary[onclick="createProject()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  // Try Supabase first, fall back to local
+  if (window.supa && window._authUser) {
+    supa.from('projects').insert({
+      name        : projectData.name,
+      description : projectData.description,
+      status      : projectData.status,
+      priority    : projectData.priority,
+      start_date  : projectData.startDate || null,
+      due_date    : projectData.due || null,
+      budget      : projectData.budget,
+      owner_id    : window._authUser.id,
+      team        : [window._authUser.id],
+      created_by  : window._authUser.id
+    }).select().single().then(({ data, error }) => {
+      if (btn) { btn.disabled = false; btn.textContent = 'Create Project'; }
+      if (error) {
+        console.error('Supabase error:', error);
+        showToast('Error: ' + error.message, 'error');
+        return;
+      }
+      // Add to local DATA
+      DATA.projects.unshift({
+        id          : data.id,
+        name        : data.name,
+        description : data.description || '',
+        status      : data.status,
+        priority    : data.priority,
+        progress    : 0,
+        startDate   : data.start_date || '',
+        due         : data.due_date || '',
+        budget      : data.budget || 0,
+        spent       : 0,
+        owner       : data.owner_id,
+        team        : data.team || [],
+        tasks       : 0,
+        completed   : 0,
+        tags        : []
+      });
+      // Log activity
+      if (window.logActivity) logActivity('Created project', 'Projects', data.name, data.id);
+      showToast('Project "' + data.name + '" created', 'success');
+      navigate('project-detail', data.id);
+    });
+  } else {
+    // Local fallback (no Supabase session)
+    if (btn) { btn.disabled = false; }
+    const newId = Date.now();
+    DATA.projects.unshift({
+      id          : newId,
+      name        : projectData.name,
+      description : projectData.description,
+      status      : projectData.status,
+      priority    : projectData.priority,
+      progress    : 0,
+      startDate   : projectData.startDate || '',
+      due         : projectData.due || '',
+      budget      : projectData.budget,
+      spent       : 0,
+      owner       : 1,
+      team        : [1],
+      tasks       : 0,
+      completed   : 0,
+      tags        : []
+    });
+    showToast('Project created (offline)', 'success');
+    navigate('project-detail', newId);
+  }
 }
 
 function saveNewIssue() {
@@ -9838,6 +9975,7 @@ async function bootAuth() {
   supa.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       _authUser = session.user;
+      window._authUser = session.user;
       await loadProfile();
       hideLoginScreen();
       await initAppWithSupabase();
@@ -9852,6 +9990,7 @@ async function bootAuth() {
   const { data: { session } } = await supa.auth.getSession();
   if (session) {
     _authUser = session.user;
+    window._authUser = session.user;
     await loadProfile();
     hideLoginScreen();
     await initAppWithSupabase();
@@ -9977,6 +10116,9 @@ async function initAppWithSupabase() {
     // Update topbar with real user
     updateTopbarUser();
   }
+
+  // Load module data from Supabase
+  await loadSupabaseModuleData();
 
   // Setup realtime subscriptions
   setupRealtime();
@@ -10447,68 +10589,6 @@ async function inviteUser(email, fullName, role, level) {
   showToast(`Invitation sent to ${email}`, 'success');
 }
 
-// ── SAVE NEW PROJECT (overrides old mock function) ───────────────
-const _origSaveNewProject = window.saveNewProject;
-window.saveNewProject = async function() {
-  const name = document.getElementById('np-name')?.value?.trim();
-  if (!name) { showToast('Project name required', 'error'); return; }
-
-  const projectData = {
-    name,
-    description:  document.getElementById('np-desc')?.value || '',
-    status:       document.getElementById('np-status')?.value || 'planning',
-    priority:     document.getElementById('np-priority')?.value || 'medium',
-    startDate:    document.getElementById('np-start')?.value || null,
-    due:          document.getElementById('np-due')?.value || null,
-    budget:       parseInt(document.getElementById('np-budget')?.value) || 0,
-  };
-
-  const saved = await saveProjectToSupabase(projectData);
-  if (saved) {
-    // Add to local DATA
-    DATA.projects.unshift({
-      id: saved.id, name: saved.name, description: saved.description,
-      status: saved.status, priority: saved.priority, progress: 0,
-      startDate: saved.start_date, due: saved.due_date,
-      budget: saved.budget, spent: 0, owner: saved.owner_id,
-      team: [saved.owner_id], tasks: 0, completed: 0, tags: []
-    });
-    closeModal();
-    showToast('Project created', 'success');
-    navigate('projects-list');
-  }
-};
-
-// ── OVERRIDE saveNewTask to persist ─────────────────────────────
-const _origSaveNewTask = window.saveNewTask;
-window.saveNewTask = async function() {
-  const title = document.getElementById('nt-title')?.value?.trim();
-  if (!title) { showToast('Task title required', 'error'); return; }
-
-  const taskData = {
-    title,
-    description: document.getElementById('nt-desc')?.value || '',
-    status:      document.getElementById('nt-status')?.value || 'todo',
-    priority:    document.getElementById('nt-priority')?.value || 'medium',
-    project:     document.getElementById('nt-project')?.value || null,
-    assignee:    document.getElementById('nt-assignee')?.value || _authUser?.id,
-    due:         document.getElementById('nt-due')?.value || null,
-  };
-
-  const saved = await saveTaskToSupabase(taskData);
-  if (saved) {
-    DATA.tasks.unshift({
-      id: saved.id, title: saved.title, status: saved.status,
-      priority: saved.priority, project: saved.project_id,
-      assignee: saved.assignee_id, due: saved.due_date,
-      tags: [], comments: []
-    });
-    closeModal();
-    showToast('Task created', 'success');
-    navigate('my-tasks');
-  }
-};
-
 // ── STATUS HELPERS for current user ─────────────────────────────
 function isAdmin() { return _profile && _profile.level <= 2; }
 function isBizLead() { return _profile && _profile.level <= 3; }
@@ -10519,6 +10599,218 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootAuth);
 } else {
   bootAuth();
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  SUPABASE PERSISTENCE HELPERS
+// ════════════════════════════════════════════════════════════════
+
+// Generic upsert helper
+async function supaUpsert(table, data) {
+  if (!window.supa || !window._authUser) return null;
+  const { data: result, error } = await supa.from(table).upsert(data).select().single();
+  if (error) { console.error(`supaUpsert(${table}):`, error.message); return null; }
+  return result;
+}
+
+async function supaInsert(table, data) {
+  if (!window.supa || !window._authUser) return null;
+  const { data: result, error } = await supa.from(table).insert(data).select().single();
+  if (error) { console.error(`supaInsert(${table}):`, error.message); return null; }
+  return result;
+}
+
+async function supaUpdate(table, data, matchField, matchValue) {
+  if (!window.supa || !window._authUser) return false;
+  const { error } = await supa.from(table).update(data).eq(matchField, matchValue);
+  if (error) { console.error(`supaUpdate(${table}):`, error.message); return false; }
+  return true;
+}
+
+async function supaDelete(table, matchField, matchValue) {
+  if (!window.supa || !window._authUser) return false;
+  const { error } = await supa.from(table).delete().eq(matchField, matchValue);
+  if (error) { console.error(`supaDelete(${table}):`, error.message); return false; }
+  return true;
+}
+
+// ── ISSUE PERSISTENCE ────────────────────────────────────────────
+const _origSaveNewIssue = window.saveNewIssue;
+window.addEventListener('load', () => {
+  const origFn = saveNewIssue;
+  window.saveNewIssue = async function() {
+    // Call original to update local DATA
+    origFn();
+    // Get the newly added issue (first in array)
+    const issue = DATA.softwareIssues?.[0];
+    if (!issue || !window._authUser) return;
+    await supaInsert('issues', {
+      title          : issue.title,
+      description    : issue.description || '',
+      severity       : issue.severity || 'medium',
+      status         : issue.status || 'open',
+      issue_type     : issue.type || 'bug',
+      module         : issue.module || '',
+      environment    : issue.environment || 'production',
+      assignee_id    : issue.assignee ? (typeof issue.assignee === 'object' ? issue.assignee.id : issue.assignee) : window._authUser.id,
+      reporter_id    : window._authUser.id,
+      steps_to_repro : issue.steps || '',
+      expected_result: issue.expected || '',
+      actual_result  : issue.actual || '',
+      created_by     : window._authUser.id
+    });
+  };
+});
+
+// ── ACTION LOG PERSISTENCE ───────────────────────────────────────
+window.addEventListener('load', () => {
+  const origFn = saveNewAction;
+  window.saveNewAction = async function() {
+    origFn();
+    const action = window.MD?.actionLog?.[0];
+    if (!action || !window._authUser) return;
+    await supaInsert('action_log', {
+      action      : action.action,
+      project_ref : action.project || '',
+      status      : action.status || 'open',
+      priority    : action.priority || 'medium',
+      owner_id    : action.owner || window._authUser.id,
+      due_date    : action.due || null,
+      notes       : action.notes || '',
+      created_by  : window._authUser.id
+    });
+  };
+});
+
+// ── AGREEMENT PERSISTENCE ────────────────────────────────────────
+window.addEventListener('load', () => {
+  const origFn = saveNewAgreement;
+  window.saveNewAgreement = async function() {
+    origFn();
+    const agr = window.MD?.agreements?.[window.MD.agreements.length - 1];
+    if (!agr || !window._authUser) return;
+    await supaInsert('agreements', {
+      title          : agr.title,
+      agreement_type : agr.type || 'NDA',
+      party          : agr.party,
+      status         : agr.status || 'draft',
+      signed_date    : agr.signed && agr.signed !== '—' ? agr.signed : null,
+      expiry_date    : agr.expires && agr.expires !== '—' ? agr.expires : null,
+      value_notes    : agr.value || '',
+      notes          : agr.notes || '',
+      owner_id       : window._authUser.id,
+      created_by     : window._authUser.id
+    });
+  };
+});
+
+// ── EVENT PERSISTENCE ────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const origFn = saveNewEvent;
+  window.saveNewEvent = async function() {
+    origFn();
+    const ev = window.EVENTS_DATA?.[window.EVENTS_DATA.length - 1];
+    if (!ev || !window._authUser) return;
+    await supaInsert('events', {
+      name         : ev.name,
+      event_type   : ev.type || 'Conference',
+      status       : ev.status || 'planning',
+      location     : ev.location || '',
+      start_date   : ev.date,
+      end_date     : ev.end || ev.date,
+      budget       : ev.budget || 0,
+      objectives   : ev.objectives || [],
+      created_by   : window._authUser.id
+    });
+  };
+});
+
+// ── USER PROFILE UPDATE ──────────────────────────────────────────
+window.addEventListener('load', () => {
+  const origFn = saveUserProfile;
+  window.saveUserProfile = async function(userId) {
+    origFn(userId);
+    if (!window._authUser) return;
+    const fullName = document.getElementById('up-name')?.value?.trim();
+    const phone    = document.getElementById('up-phone')?.value?.trim();
+    const location = document.getElementById('up-location')?.value?.trim();
+    if (!fullName) return;
+    await supaUpdate('profiles',
+      { full_name: fullName, phone: phone || null, location: location || null,
+        updated_at: new Date().toISOString() },
+      'id', window._authUser.id
+    );
+    if (window._profile) {
+      window._profile.full_name = fullName;
+      window._profile.phone     = phone;
+      window._profile.location  = location;
+    }
+  };
+});
+
+// ── REALTIME LOAD ON INIT ────────────────────────────────────────
+// Load issues, agreements, events from Supabase on boot
+async function loadSupabaseModuleData() {
+  if (!window.supa || !window._authUser) return;
+
+  // Load issues
+  const { data: issues } = await supa.from('issues').select('*').order('created_at', {ascending:false});
+  if (issues && issues.length > 0) {
+    DATA.softwareIssues = issues.map(i => ({
+      id: i.id, issueNumber: i.issue_number, title: i.title,
+      description: i.description || '', severity: i.severity,
+      status: i.status, type: i.issue_type, module: i.module || '',
+      environment: i.environment || 'production',
+      assignee: i.assignee_id, reporter: i.reporter_id,
+      due: i.due_date || '', steps: i.steps_to_repro || '',
+      expected: i.expected_result || '', actual: i.actual_result || '',
+      resolution: i.resolution || '', comments: i.comments || [],
+      date: i.created_at?.split('T')[0] || ''
+    }));
+  }
+
+  // Load agreements
+  const { data: agrs } = await supa.from('agreements').select('*').order('created_at', {ascending:false});
+  if (agrs && agrs.length > 0) {
+    if (!window.MD) window.MD = {};
+    window.MD.agreements = agrs.map(a => ({
+      id: a.id, title: a.title, type: a.agreement_type,
+      party: a.party, status: a.status,
+      signed: a.signed_date || '—', expires: a.expiry_date || '—',
+      value: a.value_notes || '—', notes: a.notes || '', owner: 1
+    }));
+  }
+
+  // Load action log
+  const { data: actions } = await supa.from('action_log').select('*').order('created_at', {ascending:false});
+  if (actions && actions.length > 0) {
+    if (!window.MD) window.MD = {};
+    window.MD.actionLog = actions.map(a => ({
+      id: a.id, action: a.action, project: a.project_ref || '',
+      status: a.status, priority: a.priority,
+      owner: a.owner_id, due: a.due_date || '',
+      notes: a.notes || '', comments: a.comments || []
+    }));
+  }
+
+  // Load events
+  const { data: events } = await supa.from('events').select('*').order('start_date', {ascending:true});
+  if (events && events.length > 0) {
+    window.EVENTS_DATA = events.map(e => ({
+      id: e.id, name: e.name, date: e.start_date, end: e.end_date || e.start_date,
+      location: e.location || '', country: e.country_code || '',
+      status: e.status, type: e.event_type || 'Conference',
+      budget: e.budget || 0, spent: e.spent || 0,
+      leads: e.leads_generated || 0,
+      attendees: [], objectives: e.objectives || [],
+      outcomes: e.outcomes || '', achievements: e.achievements || [],
+      targetCustomers: e.target_customers || [],
+      milestones: e.milestones || []
+    }));
+  }
+
+  console.log('Module data loaded from Supabase ✓');
 }
 
 </script>
