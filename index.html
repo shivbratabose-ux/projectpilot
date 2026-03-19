@@ -1279,7 +1279,7 @@ const DATA = {
 };
 
 let currentScreen = 'dashboard';
-let currentTab = {};
+let currentTab = {'project-detail':'overview','settings':'general','events':'list','analytics':'overview','gtm-detail':'overview','jv-financials':'overview','sprint-board':'board','user-management':'users'};
 let taskFilter = 'all';
 let taskSort = 'due';
 let checklistState = {};
@@ -2248,7 +2248,7 @@ function renderIssues() {
                 <td><span class="badge-status ${i.status}">${i.status}</span></td>
                 <td>${DATA.users.find(u=>u.id===i.assignee)?.name||'—'}</td>
                 <td style="font-size:13px;color:var(--text2)">${formatDate(i.reported)}</td>
-                <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openIssueDetail(${i.id})"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
+                <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openIssueDetail('${i.id}')"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -2278,7 +2278,7 @@ function renderPartners() {
                 <td><span class="tag">${p.type}</span></td>
                 <td><span class="badge-status ${p.status}">${p.status}</span></td>
                 <td style="font-size:13px;color:var(--text2)">${p.signed?formatDate(p.signed):'—'}</td>
-                <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPartnerDetail(${p.id})"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
+                <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openPartnerDetail('${p.id}')"><span class="material-icons-round" style="font-size:15px">open_in_new</span></button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -3876,15 +3876,27 @@ function showUserDetail(userId) {
 
 function saveEditTask(taskId) {
   const t = DATA.tasks.find(x=>String(x.id)===String(taskId));
-  if(!t) return;
-  t.title = document.getElementById('et-title')?.value || t.title;
-  t.priority = document.getElementById('et-priority')?.value || t.priority;
-  t.status = document.getElementById('et-status')?.value || t.status;
-  t.due = document.getElementById('et-due')?.value || t.due;
-  t.description = document.getElementById('et-desc')?.value || t.description;
+  if (!t) return;
+  const title    = document.getElementById('et-title')?.value?.trim() || t.title;
+  const status   = document.getElementById('et-status')?.value   || t.status;
+  const priority = document.getElementById('et-priority')?.value || t.priority;
+  const assignee = document.getElementById('et-assignee')?.value || t.assignee;
+  const due      = document.getElementById('et-due')?.value      || t.due;
+  const desc     = document.getElementById('et-desc')?.value     || t.description;
+  // Update local
+  Object.assign(t, { title, status, priority, assignee, due, description: desc });
+  // Persist to Supabase
+  if (window._authUser) {
+    supa.from('tasks').update({ title, status, priority,
+      assignee_id: assignee, due_date: due || null, description: desc,
+      updated_at: new Date().toISOString()
+    }).eq('id', taskId).then(({error}) => {
+      if (error) console.warn('saveEditTask:', error.message);
+    });
+  }
   closeModal();
-  showToast('Task updated','success');
-  navigate(currentScreen);
+  showToast('Task updated', 'success');
+  navigate(window.currentScreen || 'my-tasks');
 }
 
 function deleteTask(taskId) {
@@ -4578,8 +4590,8 @@ function renderCampaigns() {
             </div>
           </div>
           <div style="display:flex;gap:4px">
-            <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();openEditCampaignModal(${c.id})"><span class="material-icons-round" style="font-size:14px">edit</span></button>
-            <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteCampaign(${c.id})"><span class="material-icons-round" style="font-size:14px;color:var(--red-text)">delete_outline</span></button>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();openEditCampaignModal('${c.id}')"><span class="material-icons-round" style="font-size:14px">edit</span></button>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteCampaign('${c.id}')"><span class="material-icons-round" style="font-size:14px;color:var(--red-text)">delete_outline</span></button>
           </div>
         </div>
         <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">${c.description}</div>
@@ -6706,8 +6718,8 @@ function renderReleaseCalendar() {
                 <div style="font-size:12.5px;color:var(--text3);margin-top:2px"><span class="material-icons-round" style="font-size:13px;vertical-align:middle">calendar_today</span> ${formatDate(r.date)}</div>
               </div>
               <div style="display:flex;gap:4px">
-                <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();openEditReleaseModal(${r.id})" data-tip="Edit"><span class="material-icons-round" style="font-size:14px">edit</span></button>
-                ${r.status!=='released'?`<button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();markReleased(${r.id})" data-tip="Mark Released"><span class="material-icons-round" style="font-size:14px;color:var(--green)">rocket_launch</span></button>`:''}
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();openEditReleaseModal('${r.id}')" data-tip="Edit"><span class="material-icons-round" style="font-size:14px">edit</span></button>
+                ${r.status!=='released'?`<button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();markReleased('${r.id}')" data-tip="Mark Released"><span class="material-icons-round" style="font-size:14px;color:var(--green)">rocket_launch</span></button>`:''}
               </div>
             </div>
             <!-- Release items -->
@@ -8234,15 +8246,34 @@ function setProjectAccess(projId, userId, level) {
   showToast(`Project access updated`,'success');
 }
 function saveUserProfile(userId) {
-  const u = DATA.users.find(x=>x.id===userId); if(!u) return;
-  const fn = document.getElementById('up-fn')?.value.trim();
-  const ln = document.getElementById('up-ln')?.value.trim();
-  if (fn) u.name = `${fn} ${ln||''}`.trim();
-  const role = document.getElementById('up-sysrole')?.value;
-  if (role) u.role = role;
-  showToast('Profile saved','success');
-  window.UM_STATE.activeUserId = null;
-  navigate('user-management');
+  const name     = document.getElementById('up-name')?.value?.trim();
+  const phone    = document.getElementById('up-phone')?.value?.trim();
+  const location = document.getElementById('up-location')?.value?.trim();
+  const dept     = document.getElementById('up-dept')?.value?.trim();
+  if (!name) { showToast('Name required','error'); return; }
+  // Update local
+  if (window._profile) {
+    window._profile.full_name  = name;
+    window._profile.phone      = phone;
+    window._profile.location   = location;
+    window._profile.department = dept;
+  }
+  const u = DATA.users.find(x=>isMe(x.id));
+  if (u) u.name = name;
+  // Persist to Supabase
+  if (window._authUser) {
+    supa.from('profiles').update({
+      full_name: name, phone: phone||null,
+      location: location||null, department: dept||null,
+      updated_at: new Date().toISOString()
+    }).eq('id', window._authUser.id).then(({error}) => {
+      if (error) console.warn('saveUserProfile:', error.message);
+    });
+  }
+  patchCurrentUser();
+  closeModal();
+  showToast('Profile updated','success');
+  navigate('profile');
 }
 function filterUserTable(query) {
   const rows = document.querySelectorAll('#user-table tbody tr');
@@ -10343,6 +10374,52 @@ window._allProfiles = [];
 // ── BOOT ─────────────────────────────────────────────────────────
 
 // Clear stale session helper
+
+function saveEditProject(projectId) {
+  const p = DATA.projects.find(x=>String(x.id)===String(projectId));
+  if (!p) return;
+  const name     = document.getElementById('ep-name')?.value?.trim()    || p.name;
+  const status   = document.getElementById('ep-status')?.value          || p.status;
+  const priority = document.getElementById('ep-priority')?.value        || p.priority;
+  const due      = document.getElementById('ep-due')?.value             || p.due;
+  const desc     = document.getElementById('ep-desc')?.value?.trim()    || p.description;
+  const budget   = parseFloat(document.getElementById('ep-budget')?.value) || p.budget;
+  Object.assign(p, { name, status, priority, due, description: desc, budget });
+  if (window._authUser) {
+    supa.from('projects').update({ name, status, priority,
+      due_date: due || null, description: desc, budget,
+      updated_at: new Date().toISOString()
+    }).eq('id', projectId).then(({error}) => {
+      if (error) console.warn('saveEditProject:', error.message);
+    });
+  }
+  closeModal();
+  showToast('Project updated', 'success');
+  navigate('project-detail', String(projectId));
+}
+
+function openEditProjectModal(projectId) {
+  const p = DATA.projects.find(x=>String(x.id)===String(projectId));
+  if (!p) return;
+  const sOpts = ['planning','in-progress','on-hold','done'].map(function(s){ return '<option '+(p.status===s?'selected':'')+' value="'+s+'">'+s.replace('-',' ')+'</option>'; }).join('');
+  const pOpts = ['high','medium','low'].map(function(s){ return '<option '+(p.priority===s?'selected':'')+' value="'+s+'">'+s+'</option>'; }).join('');
+  const pid = String(p.id);
+  openModal('Edit Project',
+    '<div class="modal-body">' +
+    '<div class="form-group"><div class="form-label">Project Name</div><input class="form-control" id="ep-name" value="'+p.name+'"></div>' +
+    '<div class="form-row">' +
+    '<div class="form-group"><div class="form-label">Status</div><select class="form-control" id="ep-status">'+sOpts+'</select></div>' +
+    '<div class="form-group"><div class="form-label">Priority</div><select class="form-control" id="ep-priority">'+pOpts+'</select></div>' +
+    '</div><div class="form-row">' +
+    '<div class="form-group"><div class="form-label">Due Date</div><input type="date" class="form-control" id="ep-due" value="'+(p.due||'')+'"></div>' +
+    '<div class="form-group"><div class="form-label">Budget</div><input type="number" class="form-control" id="ep-budget" value="'+(p.budget||0)+'"></div>' +
+    '</div><div class="form-group"><div class="form-label">Description</div><textarea class="form-control" id="ep-desc">'+(p.description||'')+'</textarea></div>' +
+    '</div><div class="modal-footer">' +
+    '<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="saveEditProject(this.dataset.pid)" data-pid="'+pid+'">Save Changes</button>' +
+    '</div>', 'lg');
+}
+
 function clearSupaSession() {
   localStorage.removeItem('supa_session');
   supa._token = null; supa._refreshToken = null; supa._user = null;
