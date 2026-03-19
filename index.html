@@ -10493,7 +10493,6 @@ async function onUserSignedIn(authUser) {
   try { await loadProjectsFromDB(); } catch(e) { console.warn('loadProjects:', e.message); }
   try { await loadTasksFromDB(); }    catch(e) { console.warn('loadTasks:', e.message); }
   try { await loadModuleDataFromDB(); } catch(e) { console.warn('loadModules:', e.message); }
-  try { await seedSupabaseIfEmpty(); } catch(e) { console.warn('seed:', e.message); }
 
   // ── STEP 3: Setup realtime ─────────────────────────────────────
   try { setupRealtimeSubs(); } catch(e) { console.warn('realtime:', e.message); }
@@ -10581,58 +10580,7 @@ async function loadTasksFromDB() {
   } catch(e) { console.warn('loadTasksFromDB:', e.message); }
 }
 
-async function seedSupabaseIfEmpty() {
-  // If Supabase has no projects, push local seed data up so everyone shares it
-  if (!window._authUser) return;
-  try {
-    const { data: existingProjects } = await supa.from('projects').select('id').limit(1);
-    if (existingProjects?.length) return; // Already has data
-    
-    // Seed projects
-    for (const p of DATA.projects.slice(0, 6)) {
-      await supa.from('projects').insert({
-        name:        p.name,
-        description: p.description || '',
-        status:      p.status || 'planning',
-        priority:    p.priority || 'medium',
-        progress:    p.progress || 0,
-        start_date:  p.startDate || null,
-        due_date:    p.due || null,
-        budget:      p.budget || 0,
-        owner_id:    window._authUser.id,
-        team:        [window._authUser.id],
-        created_by:  window._authUser.id
-      }).select().single().then(({data}) => {
-        // Map old numeric ID to new UUID
-        if (data) p.id = data.id;
-      });
-    }
-    
-    // Seed tasks
-    for (const t of DATA.tasks.slice(0, 12)) {
-      const proj = DATA.projects.find(p => p.id == t.project);
-      await supa.from('tasks').insert({
-        title:       t.title,
-        description: t.description || '',
-        status:      t.status || 'todo',
-        priority:    t.priority || 'medium',
-        project_id:  proj?.id || null,
-        assignee_id: window._authUser.id,
-        reporter_id: window._authUser.id,
-        due_date:    t.due || null,
-        tags:        t.tags || [],
-        created_by:  window._authUser.id
-      });
-    }
-    
-    console.log('Seeded Supabase with initial data ✓');
-    // Reload from DB now
-    await loadProjectsFromDB();
-    await loadTasksFromDB();
-  } catch(e) {
-    console.warn('seedSupabaseIfEmpty:', e.message);
-  }
-}
+
 
 async function loadModuleDataFromDB() {
   try {
