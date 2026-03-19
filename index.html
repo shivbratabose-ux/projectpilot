@@ -10553,68 +10553,81 @@ async function bootAuth() {
   initSidebarState();
   document.getElementById('app').style.display = 'none';
 
-  // Force logout if ?logout or ?reset in URL
+  // ── VERSION CHECK: clear stale sessions on new deploy ────────
+  const APP_VERSION = '3.0';
+  const storedVer = localStorage.getItem('hanshub_version');
+  if (storedVer !== APP_VERSION) {
+    // New version deployed - force fresh login
+    localStorage.clear();
+    localStorage.setItem('hanshub_version', APP_VERSION);
+    supa._token = null; supa._refreshToken = null; supa._user = null;
+    showLoginScreen();
+    // Still wire up auth change listener
+    supa.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await onUserSignedIn(session.user || session);
+      } else if (event === 'SIGNED_OUT') {
+        window._authUser = null; window._profile = null;
+        localStorage.removeItem('supa_session');
+        showLoginScreen();
+      }
+    });
+    return;
+  }
+
+  // Clear session if ?reset or ?logout in URL
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('logout') || urlParams.has('reset')) {
     localStorage.removeItem('supa_session');
     supa._token = null; supa._user = null;
     window.history.replaceState({}, '', window.location.pathname);
-    showLoginScreen();
-    return;
   }
 
-  // App version check - clear stale sessions from old builds
-  const APP_VERSION = '2.0';
-  const storedVersion = localStorage.getItem('hanshub_version');
-  if (storedVersion !== APP_VERSION) {
+  // ALWAYS show login screen first
+  showLoginScreen();
+
+  // Then silently check if there is a valid saved session
+  const remember = localStorage.getItem('hanshub_remember');
+  if (remember !== 'true') {
     localStorage.removeItem('supa_session');
-    localStorage.setItem('hanshub_version', APP_VERSION);
     supa._token = null; supa._user = null;
-    showLoginScreen();
     return;
   }
 
+  // User chose to stay logged in - validate their session
   try {
-    // Check existing session first
     const { data: { session } } = await supa.auth.getSession();
     if (session?.user) {
-      // Validate token is still good with a quick API call
+      // Validate token is still good
       const testRes = await fetch(SUPA_URL + '/rest/v1/profiles?select=id&limit=1', {
         headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + session.access_token }
       });
-      if (!testRes.ok) {
-        // Token invalid - clear and show login
-        localStorage.removeItem('supa_session');
-        supa._token = null; supa._user = null;
-        showLoginScreen();
-        return;
-      }
-      try {
+      if (testRes.ok) {
+        // Valid session - auto login silently
         await onUserSignedIn(session.user);
-      } catch(e) {
-        console.error('onUserSignedIn failed:', e.message);
+      } else {
+        localStorage.removeItem('supa_session');
+        supa._token = null;
         showLoginScreen();
       }
-    } else {
-      showLoginScreen();
     }
-
-    // Listen for future auth changes
-    supa.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const user = session.user || session;
-        await onUserSignedIn(user);
-      } else if (event === 'SIGNED_OUT') {
-        window._authUser = null;
-        window._profile  = null;
-        showLoginScreen();
-      }
-    });
-  } catch(err) {
-    console.error('Auth boot error:', err);
-    // Still show login on error
+  } catch(e) {
+    console.warn('Session check failed:', e.message);
     showLoginScreen();
   }
+
+  // Listen for auth changes
+  supa.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      const user = session.user || session;
+      await onUserSignedIn(user);
+    } else if (event === 'SIGNED_OUT') {
+      window._authUser = null;
+      window._profile  = null;
+      localStorage.removeItem('supa_session');
+      showLoginScreen();
+    }
+  });
 }
 
 // ── ON SIGNED IN ─────────────────────────────────────────────────
@@ -11061,17 +11074,31 @@ async function doLogin() {
   const pass  = document.getElementById('auth-pass')?.value;
   const btn   = document.getElementById('login-btn');
   const errEl = document.getElementById('auth-error');
-  if (!email || !pass) { showAuthMsg('error','Please enter email and password.'); return; }
-  btn.classList.add('loading'); btn.disabled = true;
+  if (!email || !pass) { showAuthMsg('error', 'Please enter your email and password.'); return; }
+  if (btn) { btn.classList.add('loading'); btn.disabled = true; btn.textContent = 'Signing in...'; }
   errEl?.classList.remove('show');
+
   const { data, error } = await supa.auth.signInWithPassword({ email, password: pass });
-  btn.classList.remove('loading'); btn.disabled = false;
+
+  if (btn) { btn.classList.remove('loading'); btn.disabled = false; btn.innerHTML = '<span class="material-icons-round" style="font-size:18px">login</span> Sign in'; }
+
   if (error) {
-    showAuthMsg('error', error.message.includes('Invalid') ? 'Incorrect email or password.' : error.message);
-    document.getElementById('auth-pass')?.classList.add('error');
+    const msg = error.message.toLowerCase();
+    if (msg.includes('invalid') || msg.includes('credentials') || msg.includes('wrong')) {
+      showAuthMsg('error', 'Incorrect email or password. Please try again.');
+    } else {
+      showAuthMsg('error', error.message);
+    }
+    const passEl = document.getElementById('auth-pass');
+    if (passEl) passEl.style.borderColor = '#ef4444';
     return;
   }
-  // onAuthStateChange will handle the rest
+
+  // Save "remember me" preference
+  const remember = document.getElementById('auth-remember')?.checked;
+  localStorage.setItem('hanshub_remember', remember ? 'true' : 'false');
+
+  // onUserSignedIn fires via onAuthStateChange
 }
 
 function showMagicForm() {
