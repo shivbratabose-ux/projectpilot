@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10551,7 +10552,7 @@ function clearSupaSession() {
 }
 async function bootAuth() {
   initSidebarState();
-  document.getElementById('app').style.display = 'none';
+  const appEl = document.getElementById('app'); if (appEl) appEl.style.display = 'none';
 
   // ── VERSION CHECK: clear stale sessions on new deploy ────────
   const APP_VERSION = '3.0';
@@ -10966,7 +10967,7 @@ async function doSignOut() {
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────────
 function showLoginScreen() {
-  document.getElementById('app').style.display = 'none';
+  const appEl = document.getElementById('app'); if (appEl) appEl.style.display = 'none';
   let overlay = document.getElementById('auth-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -11066,7 +11067,7 @@ function showLoginScreen() {
 function hideLoginScreen() {
   const overlay = document.getElementById('auth-overlay');
   if (overlay) overlay.style.display = 'none';
-  document.getElementById('app').style.display = '';
+  const appEl2 = document.getElementById('app'); if (appEl2) appEl2.style.display = '';
 }
 
 async function doLogin() {
