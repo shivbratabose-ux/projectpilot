@@ -10428,10 +10428,42 @@ async function bootAuth() {
   initSidebarState();
   document.getElementById('app').style.display = 'none';
 
+  // Force logout if ?logout or ?reset in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('logout') || urlParams.has('reset')) {
+    localStorage.removeItem('supa_session');
+    supa._token = null; supa._user = null;
+    window.history.replaceState({}, '', window.location.pathname);
+    showLoginScreen();
+    return;
+  }
+
+  // App version check - clear stale sessions from old builds
+  const APP_VERSION = '2.0';
+  const storedVersion = localStorage.getItem('hanshub_version');
+  if (storedVersion !== APP_VERSION) {
+    localStorage.removeItem('supa_session');
+    localStorage.setItem('hanshub_version', APP_VERSION);
+    supa._token = null; supa._user = null;
+    showLoginScreen();
+    return;
+  }
+
   try {
     // Check existing session first
     const { data: { session } } = await supa.auth.getSession();
     if (session?.user) {
+      // Validate token is still good with a quick API call
+      const testRes = await fetch(SUPA_URL + '/rest/v1/profiles?select=id&limit=1', {
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + session.access_token }
+      });
+      if (!testRes.ok) {
+        // Token invalid - clear and show login
+        localStorage.removeItem('supa_session');
+        supa._token = null; supa._user = null;
+        showLoginScreen();
+        return;
+      }
       try {
         await onUserSignedIn(session.user);
       } catch(e) {
