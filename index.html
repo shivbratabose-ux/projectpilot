@@ -1002,7 +1002,7 @@ console.log('HansHub REST client ready ✓');
 </script>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
@@ -10552,7 +10552,7 @@ function clearSupaSession() {
 }
 async function bootAuth() {
   initSidebarState();
-  const appEl = document.getElementById('app'); if (appEl) appEl.style.display = 'none';
+  document.getElementById('app').style.display = 'none';
 
   // ── VERSION CHECK: clear stale sessions on new deploy ────────
   const APP_VERSION = '3.0';
@@ -10967,107 +10967,107 @@ async function doSignOut() {
 
 // ── LOGIN SCREEN ──────────────────────────────────────────────────
 function showLoginScreen() {
-  const appEl = document.getElementById('app'); if (appEl) appEl.style.display = 'none';
-  let overlay = document.getElementById('auth-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'auth-overlay';
-    document.body.appendChild(overlay);
-  }
-  overlay.className = 'auth-overlay';
-  overlay.style.display = 'flex';
-  overlay.innerHTML = `
-    <div class="auth-wrap">
+  const app = document.getElementById('app');
+  if (app) app.style.display = 'none';
 
-      <!-- LEFT PANEL -->
-      <div class="auth-left">
-        <div class="auth-brand">
-          <div class="auth-brand-logo">H</div>
-          <div class="auth-brand-name">HansHub</div>
-          <div class="auth-brand-sub">Hans Infomatic Private Limited</div>
-        </div>
-        <div class="auth-tagline">
-          <div class="auth-tagline-text">One platform for every project, deal and team.</div>
-          <div class="auth-tagline-desc">Manage ground handling deployments, cargo systems, health-tech projects and GTM pipelines — all in one place.</div>
-        </div>
-        <div class="auth-features">
-          <div class="auth-feature"><div class="auth-feature-dot"></div>Projects, tasks and milestones</div>
-          <div class="auth-feature"><div class="auth-feature-dot"></div>Partner agreements and action logs</div>
-          <div class="auth-feature"><div class="auth-feature-dot"></div>GTM pipelines and event tracking</div>
-          <div class="auth-feature"><div class="auth-feature-dot"></div>Real-time collaboration across teams</div>
-        </div>
-      </div>
+  let ov = document.getElementById('auth-overlay');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'auth-overlay'; document.body.appendChild(ov); }
 
-      <!-- RIGHT PANEL -->
-      <div class="auth-right">
-        <div class="auth-form-title">Welcome back</div>
-        <div class="auth-form-sub">Sign in to your HansHub workspace</div>
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 
-        <div class="auth-error" id="auth-error"></div>
-        <div class="auth-success" id="auth-success"></div>
+  ov.innerHTML = '<div style="display:flex;width:100%;max-width:900px;min-height:520px;border-radius:16px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6)">'
 
-        <div id="auth-password-form">
-          <div class="auth-field">
-            <label>Email address</label>
-            <input type="email" id="auth-email" placeholder="you@hansinfomatic.com"
-              autocomplete="email"
-              onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
-          </div>
-          <div class="auth-field">
-            <label>Password</label>
-            <input type="password" id="auth-pass" placeholder="••••••••••••"
-              autocomplete="current-password"
-              onkeydown="if(event.key==='Enter')doLogin()">
-          </div>
-          <label class="auth-remember">
-            <input type="checkbox" id="auth-remember" checked>
-            Keep me signed in
-          </label>
-          <button class="auth-submit" id="login-btn" onclick="doLogin()">
-            <span class="material-icons-round" style="font-size:18px">login</span>
-            Sign in
-          </button>
-          <div class="auth-divider">or</div>
-          <button class="auth-magic" onclick="showMagicForm()">
-            <span class="material-icons-round" style="font-size:16px">auto_awesome</span>
-            Sign in with magic link
-          </button>
-        </div>
+    // LEFT PANEL
+    + '<div style="flex:1;background:linear-gradient(145deg,#0d2018 0%,#1B6B5A 100%);padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between">'
+      + '<div>'
+        + '<div style="width:48px;height:48px;background:rgba(255,255,255,0.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:white;margin-bottom:20px;border:1px solid rgba(255,255,255,0.2)">H</div>'
+        + '<div style="font-size:26px;font-weight:700;color:white;letter-spacing:-0.5px">HansHub</div>'
+        + '<div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px">Hans Infomatic Private Limited</div>'
+      + '</div>'
+      + '<div>'
+        + '<div style="font-size:28px;font-weight:700;color:white;line-height:1.3;margin-bottom:12px">One platform for every project, deal and team.</div>'
+        + '<div style="font-size:13px;color:rgba(255,255,255,0.5);line-height:1.7">'
+          + 'WiseHandling &middot; WiseTrax &middot; DRC HMIS &middot; GTM &middot; Partners'
+        + '</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:10px">'
+        + '<div style="font-size:12px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:8px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);display:inline-block"></span>Projects, tasks and milestones</div>'
+        + '<div style="font-size:12px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:8px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);display:inline-block"></span>Partner agreements and action logs</div>'
+        + '<div style="font-size:12px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:8px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);display:inline-block"></span>GTM pipelines and event tracking</div>'
+        + '<div style="font-size:12px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:8px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.4);display:inline-block"></span>Real-time team collaboration</div>'
+      + '</div>'
+    + '</div>'
 
-        <div id="auth-magic-form" style="display:none">
-          <div class="auth-field">
-            <label>Email address</label>
-            <input type="email" id="magic-email" placeholder="you@hansinfomatic.com"
-              onkeydown="if(event.key==='Enter')doMagicLink()">
-          </div>
-          <button class="auth-submit" id="magic-btn" onclick="doMagicLink()">
-            <span class="material-icons-round" style="font-size:18px">send</span>
-            Send magic link
-          </button>
-          <div class="auth-divider">or</div>
-          <button class="auth-magic" onclick="
-            document.getElementById('auth-magic-form').style.display='none';
-            document.getElementById('auth-password-form').style.display='block';">
-            <span class="material-icons-round" style="font-size:16px">lock</span>
-            Back to password login
-          </button>
-        </div>
+    // RIGHT PANEL
+    + '<div style="width:400px;background:white;padding:48px 40px;display:flex;flex-direction:column;justify-content:center">'
+      + '<div style="font-size:26px;font-weight:700;color:#0f172a;margin-bottom:4px">Welcome back</div>'
+      + '<div style="font-size:14px;color:#64748b;margin-bottom:32px">Sign in to your HansHub workspace</div>'
+      + '<div id="auth-error" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none"></div>'
+      + '<div id="auth-success" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none"></div>'
+      + '<div id="auth-password-form">'
+        + '<div style="margin-bottom:18px">'
+          + '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Email address</label>'
+          + '<input id="auth-email" type="email" placeholder="you@hansinfomatic.com" autocomplete="email" '
+          + 'style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111827;background:#f9fafb;box-sizing:border-box;outline:none;font-family:inherit" '
+          + 'onfocus="this.style.borderColor=\'#1B6B5A\';this.style.background=\'white\'" '
+          + 'onblur="this.style.borderColor=\'#e5e7eb\'" '
+          + 'onkeydown="if(event.key===\'Enter\')document.getElementById(\'auth-pass\').focus()">'
+        + '</div>'
+        + '<div style="margin-bottom:18px">'
+          + '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Password</label>'
+          + '<input id="auth-pass" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password" '
+          + 'style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111827;background:#f9fafb;box-sizing:border-box;outline:none;font-family:inherit" '
+          + 'onfocus="this.style.borderColor=\'#1B6B5A\';this.style.background=\'white\'" '
+          + 'onblur="this.style.borderColor=\'#e5e7eb\'" '
+          + 'onkeydown="if(event.key===\'Enter\')doLogin()">'
+        + '</div>'
+        + '<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;margin-bottom:22px;cursor:pointer">'
+          + '<input type="checkbox" id="auth-remember" checked style="accent-color:#1B6B5A;width:15px;height:15px"> Keep me signed in'
+        + '</label>'
+        + '<button id="login-btn" onclick="doLogin()" '
+          + 'style="width:100%;padding:13px;background:#1B6B5A;color:white;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px" '
+          + 'onmouseover="this.style.background=\'#155a4a\'" onmouseout="this.style.background=\'#1B6B5A\'">'
+          + 'Sign in'
+        + '</button>'
+        + '<div style="display:flex;align-items:center;gap:10px;margin:20px 0;color:#9ca3af;font-size:12px">'
+          + '<div style="flex:1;height:1px;background:#e5e7eb"></div>or<div style="flex:1;height:1px;background:#e5e7eb"></div>'
+        + '</div>'
+        + '<button onclick="showMagicForm()" '
+          + 'style="width:100%;padding:11px;background:white;color:#374151;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit" '
+          + 'onmouseover="this.style.borderColor=\'#1B6B5A\';this.style.color=\'#1B6B5A\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.color=\'#374151\'">'
+          + 'Sign in with magic link'
+        + '</button>'
+      + '</div>'
+      + '<div id="auth-magic-form" style="display:none">'
+        + '<div style="margin-bottom:18px">'
+          + '<label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">Email address</label>'
+          + '<input id="magic-email" type="email" placeholder="you@hansinfomatic.com" '
+          + 'style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111827;background:#f9fafb;box-sizing:border-box;outline:none;font-family:inherit" '
+          + 'onfocus="this.style.borderColor=\'#1B6B5A\'" onblur="this.style.borderColor=\'#e5e7eb\'" '
+          + 'onkeydown="if(event.key===\'Enter\')doMagicLink()">'
+        + '</div>'
+        + '<button id="magic-btn" onclick="doMagicLink()" '
+          + 'style="width:100%;padding:13px;background:#1B6B5A;color:white;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:12px">'
+          + 'Send magic link'
+        + '</button>'
+        + '<button onclick="document.getElementById(\'auth-magic-form\').style.display=\'none\';document.getElementById(\'auth-password-form\').style.display=\'block\'" '
+          + 'style="width:100%;padding:11px;background:white;color:#374151;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit">'
+          + 'Back to password login'
+        + '</button>'
+      + '</div>'
+      + '<div style="margin-top:28px;text-align:center;font-size:12px;color:#9ca3af">Hans Infomatic Pvt. Ltd. &nbsp;&middot;&nbsp; Internal use only</div>'
+    + '</div>'
 
-        <div class="auth-footer">
-          Hans Infomatic Pvt. Ltd. &nbsp;·&nbsp; Internal use only<br>
-          <span style="color:#d1d5db">v2.0</span>
-        </div>
-      </div>
+  + '</div>';
 
-    </div>
-  `;
-  setTimeout(() => document.getElementById('auth-email')?.focus(), 100);
+  setTimeout(() => { document.getElementById('auth-email')?.focus(); }, 100);
 }
 
 function hideLoginScreen() {
   const overlay = document.getElementById('auth-overlay');
-  if (overlay) overlay.style.display = 'none';
-  const appEl2 = document.getElementById('app'); if (appEl2) appEl2.style.display = '';
+  if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
+  const app = document.getElementById('app');
+  if (app) app.style.display = '';
 }
 
 async function doLogin() {
