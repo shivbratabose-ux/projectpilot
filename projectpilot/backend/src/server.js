@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const authRoutes    = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
@@ -13,6 +14,16 @@ const app = express();
 const origins = (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',');
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json());
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', apiLimiter);
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

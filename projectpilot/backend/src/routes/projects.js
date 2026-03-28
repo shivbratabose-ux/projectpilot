@@ -115,4 +115,73 @@ router.post('/:id/tasks', [body('title').notEmpty()], async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// PATCH /api/projects/:id/tasks/:taskId
+router.patch('/:id/tasks/:taskId', async (req, res) => {
+  const allowed = ['title','description','status','priority','assignee_id','due_date','completed_date'];
+  const updates = Object.keys(req.body).filter(k => allowed.includes(k));
+  if (!updates.length) return res.status(400).json({ error: 'No valid fields to update' });
+  const sets = updates.map((k, i) => `${k}=$${i + 3}`).join(', ');
+  const vals = [req.params.id, req.params.taskId, ...updates.map(k => req.body[k])];
+  try {
+    const { rows } = await pool.query(
+      `UPDATE tasks SET ${sets}, updated_at=NOW() WHERE project_id=$1 AND id=$2 RETURNING *`, vals
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Task not found' });
+    res.json({ task: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE /api/projects/:id/tasks/:taskId
+router.delete('/:id/tasks/:taskId', async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM tasks WHERE project_id=$1 AND id=$2', [req.params.id, req.params.taskId]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Task not found' });
+    res.json({ message: 'Task deleted' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/projects/:id/milestones
+router.get('/:id/milestones', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM milestones WHERE project_id=$1 ORDER BY sort_order', [req.params.id]
+    );
+    res.json({ milestones: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/projects/:id/milestones
+router.post('/:id/milestones', [body('name').notEmpty()], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { name, description, due_date, amount, trigger_condition, responsible_party, sort_order } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO milestones (project_id,name,description,due_date,amount,trigger_condition,responsible_party,sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.params.id, name, description, due_date, amount, trigger_condition, responsible_party, sort_order || 0]
+    );
+    res.status(201).json({ milestone: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH /api/projects/:id/milestones/:milestoneId
+router.patch('/:id/milestones/:milestoneId', async (req, res) => {
+  const allowed = ['name','description','status','due_date','completed_date','amount','trigger_condition','responsible_party','sort_order'];
+  const updates = Object.keys(req.body).filter(k => allowed.includes(k));
+  if (!updates.length) return res.status(400).json({ error: 'No valid fields to update' });
+  const sets = updates.map((k, i) => `${k}=$${i + 3}`).join(', ');
+  const vals = [req.params.id, req.params.milestoneId, ...updates.map(k => req.body[k])];
+  try {
+    const { rows } = await pool.query(
+      `UPDATE milestones SET ${sets}, updated_at=NOW() WHERE project_id=$1 AND id=$2 RETURNING *`, vals
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Milestone not found' });
+    res.json({ milestone: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

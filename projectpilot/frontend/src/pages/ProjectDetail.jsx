@@ -5,6 +5,8 @@ import { Badge, StatusBadge, SeverityBadge, ProgressBar, HealthDot, Spinner, Pag
 
 const tabs = ['Overview', 'Tasks', 'Milestones', 'Team'];
 
+const TASK_STATUS_CYCLE = ['todo', 'in_progress', 'review', 'done'];
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
@@ -12,10 +14,15 @@ export default function ProjectDetail() {
   const [tab, setTab] = useState('Overview');
   const [newTask, setNewTask] = useState({ title: '', priority: 'p3', due_date: '' });
   const [showTask, setShowTask] = useState(false);
+  const [newMilestone, setNewMilestone] = useState({ name: '', due_date: '', amount: '' });
+  const [showMilestone, setShowMilestone] = useState(false);
 
-  useEffect(() => {
-    api.get(`/api/projects/${id}`).then(r => { setData(r.data); setLoading(false); });
-  }, [id]);
+  const reload = () =>
+    api.get(`/api/projects/${id}`)
+      .then(r => { setData(r.data); setLoading(false); })
+      .catch(() => setLoading(false));
+
+  useEffect(() => { reload(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="w-8 h-8" /></div>;
   if (!data) return <div className="p-6 text-red-500">Project not found.</div>;
@@ -24,10 +31,31 @@ export default function ProjectDetail() {
 
   const addTask = async () => {
     await api.post(`/api/projects/${id}/tasks`, newTask);
-    const r = await api.get(`/api/projects/${id}`);
-    setData(r.data);
+    await reload();
     setShowTask(false);
     setNewTask({ title: '', priority: 'p3', due_date: '' });
+  };
+
+  const cycleTaskStatus = async (task) => {
+    const idx = TASK_STATUS_CYCLE.indexOf(task.status);
+    const nextStatus = TASK_STATUS_CYCLE[idx < 0 ? 0 : (idx + 1) % TASK_STATUS_CYCLE.length];
+    await api.patch(`/api/projects/${id}/tasks/${task.id}`, { status: nextStatus });
+    await reload();
+  };
+
+  const addMilestone = async () => {
+    await api.post(`/api/projects/${id}/milestones`, newMilestone);
+    await reload();
+    setShowMilestone(false);
+    setNewMilestone({ name: '', due_date: '', amount: '' });
+  };
+
+  const cycleMilestoneStatus = async (milestone) => {
+    const cycle = ['pending', 'triggered', 'completed'];
+    const idx = cycle.indexOf(milestone.status);
+    const nextStatus = cycle[idx < 0 ? 0 : (idx + 1) % cycle.length];
+    await api.patch(`/api/projects/${id}/milestones/${milestone.id}`, { status: nextStatus });
+    await reload();
   };
 
   const milestoneIcon = { completed: '✅', pending: '⭕', triggered: '⚡', overdue: '🔴', paid: '💰' };
@@ -123,9 +151,15 @@ export default function ProjectDetail() {
             {tasks.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No tasks yet.</p>}
             {tasks.map(t => (
               <div key={t.id} className="card p-4 flex items-center gap-3">
-                <span className="text-lg">{t.status === 'done' ? '✅' : t.status === 'in_progress' ? '🔄' : '⭕'}</span>
+                <button
+                  onClick={() => cycleTaskStatus(t)}
+                  title="Click to advance status"
+                  className="text-lg hover:scale-110 transition-transform"
+                >
+                  {t.status === 'done' ? '✅' : t.status === 'in_progress' ? '🔄' : t.status === 'review' ? '🔍' : '⭕'}
+                </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-navy truncate">{t.title}</p>
+                  <p className={`text-sm font-medium text-navy truncate ${t.status === 'done' ? 'line-through text-gray-400' : ''}`}>{t.title}</p>
                   {t.assignee_name && <p className="text-xs text-gray-400">Assigned to {t.assignee_name}</p>}
                 </div>
                 <SeverityBadge severity={t.priority} />
@@ -159,20 +193,47 @@ export default function ProjectDetail() {
 
       {/* Milestones */}
       {tab === 'Milestones' && (
-        <div className="space-y-3">
-          {milestones.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No milestones defined.</p>}
-          {milestones.map((m, i) => (
-            <div key={m.id} className="card p-4 flex items-center gap-4">
-              <div className="w-8 h-8 rounded-full bg-navy/10 flex items-center justify-center text-xs font-bold text-navy">{i + 1}</div>
-              <div className="flex-1">
-                <p className="font-medium text-navy">{m.name}</p>
-                {m.due_date && <p className="text-xs text-gray-400">Due: {new Date(m.due_date).toLocaleDateString('en-IN')}</p>}
+        <div>
+          <div className="flex justify-end mb-4">
+            <button onClick={() => setShowMilestone(true)} className="btn-primary">+ Add Milestone</button>
+          </div>
+          <div className="space-y-3">
+            {milestones.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No milestones defined.</p>}
+            {milestones.map((m, i) => (
+              <div key={m.id} className="card p-4 flex items-center gap-4">
+                <div className="w-8 h-8 rounded-full bg-navy/10 flex items-center justify-center text-xs font-bold text-navy">{i + 1}</div>
+                <div className="flex-1">
+                  <p className="font-medium text-navy">{m.name}</p>
+                  {m.due_date && <p className="text-xs text-gray-400">Due: {new Date(m.due_date).toLocaleDateString('en-IN')}</p>}
+                </div>
+                <button
+                  onClick={() => cycleMilestoneStatus(m)}
+                  title="Click to advance status"
+                  className="text-xl hover:scale-110 transition-transform"
+                >
+                  {milestoneIcon[m.status] || '⭕'}
+                </button>
+                <StatusBadge status={m.status} />
+                {m.amount && <span className="text-sm font-medium text-navy">₹{(m.amount/1000).toFixed(0)}K</span>}
               </div>
-              <span className="text-xl">{milestoneIcon[m.status] || '⭕'}</span>
-              <StatusBadge status={m.status} />
-              {m.amount && <span className="text-sm font-medium text-navy">₹{(m.amount/1000).toFixed(0)}K</span>}
+            ))}
+          </div>
+          {showMilestone && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowMilestone(false)}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+                <h2 className="text-lg font-semibold text-navy mb-4">Add Milestone</h2>
+                <div className="space-y-3">
+                  <div><label className="label">Name *</label><input className="input" placeholder="Milestone name" value={newMilestone.name} onChange={e => setNewMilestone(f => ({ ...f, name: e.target.value }))} /></div>
+                  <div><label className="label">Due Date</label><input type="date" className="input" value={newMilestone.due_date} onChange={e => setNewMilestone(f => ({ ...f, due_date: e.target.value }))} /></div>
+                  <div><label className="label">Amount (₹)</label><input type="number" className="input" placeholder="Optional payment amount" value={newMilestone.amount} onChange={e => setNewMilestone(f => ({ ...f, amount: e.target.value }))} /></div>
+                </div>
+                <div className="flex gap-3 mt-5">
+                  <button onClick={() => setShowMilestone(false)} className="btn-secondary flex-1">Cancel</button>
+                  <button onClick={addMilestone} disabled={!newMilestone.name} className="btn-primary flex-1 disabled:opacity-50">Add Milestone</button>
+                </div>
+              </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 

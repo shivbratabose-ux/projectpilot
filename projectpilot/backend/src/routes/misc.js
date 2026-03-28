@@ -21,32 +21,8 @@ issuesRouter.get('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-issuesRouter.post('/', auth, async (req, res) => {
-  const { project_id, title, description, severity='p3', assignee_id, sla_response_minutes, sla_resolve_hours } = req.body;
-  try {
-    const { rows } = await pool.query(
-      `INSERT INTO issues (project_id,title,description,severity,assignee_id,reporter_id,sla_response_minutes,sla_resolve_hours)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [project_id, title, description, severity, assignee_id, req.user.id, sla_response_minutes, sla_resolve_hours]
-    );
-    res.status(201).json({ issue: rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-issuesRouter.patch('/:id', auth, async (req, res) => {
-  const allowed = ['status','severity','assignee_id','resolution_notes','resolved_at'];
-  const updates = Object.keys(req.body).filter(k => allowed.includes(k));
-  if (!updates.length) return res.status(400).json({ error: 'No valid fields' });
-  const sets = updates.map((k, i) => `${k}=$${i + 2}`).join(', ');
-  const vals = [req.params.id, ...updates.map(k => req.body[k])];
-  try {
-    const { rows } = await pool.query(`UPDATE issues SET ${sets}, updated_at=NOW() WHERE id=$1 RETURNING *`, vals);
-    res.json({ issue: rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// SLA stats
-issuesRouter.get('/stats/sla', auth, async (req, res) => {
+// SLA stats — must be before /:id to avoid param capture
+issuesRouter.get('/stats/sla', async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT
@@ -58,6 +34,30 @@ issuesRouter.get('/stats/sla', auth, async (req, res) => {
       FROM issues
     `);
     res.json({ stats: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+issuesRouter.post('/', async (req, res) => {
+  const { project_id, title, description, severity='p3', assignee_id, sla_response_minutes, sla_resolve_hours } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO issues (project_id,title,description,severity,assignee_id,reporter_id,sla_response_minutes,sla_resolve_hours)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [project_id, title, description, severity, assignee_id, req.user.id, sla_response_minutes, sla_resolve_hours]
+    );
+    res.status(201).json({ issue: rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+issuesRouter.patch('/:id', async (req, res) => {
+  const allowed = ['status','severity','assignee_id','resolution_notes','resolved_at'];
+  const updates = Object.keys(req.body).filter(k => allowed.includes(k));
+  if (!updates.length) return res.status(400).json({ error: 'No valid fields' });
+  const sets = updates.map((k, i) => `${k}=$${i + 2}`).join(', ');
+  const vals = [req.params.id, ...updates.map(k => req.body[k])];
+  try {
+    const { rows } = await pool.query(`UPDATE issues SET ${sets}, updated_at=NOW() WHERE id=$1 RETURNING *`, vals);
+    res.json({ issue: rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
